@@ -8,12 +8,16 @@ int mt_failures;
 void test_backoff(void);
 void test_proto(void);
 void test_devcfg(void);
+void test_msg(void);
+void test_pcm(void);
 
 int main(void)
 {
     test_backoff();
     test_proto();
     test_devcfg();
+    test_msg();
+    test_pcm();
     printf("%d checks, %d failures\n", mt_checks, mt_failures);
     return mt_failures ? 1 : 0;
 }
