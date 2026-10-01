@@ -1,0 +1,49 @@
+menu "Pedestrian Edge"
+
+    choice BOARD
+        prompt "Board"
+        default BOARD_FREENOVE_S3CAM
+
+        config BOARD_FREENOVE_S3CAM
+            bool "Freenove ESP32-S3-WROOM CAM"
+    endchoice
+
+    choice NET_BACKEND
+        prompt "Network backend"
+        default NET_BACKEND_WIFI
+
+        config NET_BACKEND_WIFI
+            bool "Wi-Fi"
+    endchoice
+
+    config WIFI_SSID
+        string "Wi-Fi SSID"
+        default ""
+        depends on NET_BACKEND_WIFI
+
+    config WIFI_PASSWORD
+        string "Wi-Fi password (empty = open network)"
+        default ""
+        depends on NET_BACKEND_WIFI
+
+    config MQTT_URI
+        string "MQTT broker URI"
+        default "wss://mqtt.example.com:443/mqtt"
+        help
+            wss://host:443/mqtt through Cloudflare Tunnel, or for bench tests
+            directly to the PC: ws://<pc-ip>:9001/mqtt or mqtt://<pc-ip>:1883
+            (the PC's Mosquitto must listen on the LAN for those).
+
+    config MQTT_USERNAME
+        string "MQTT username (empty = none)"
+        default ""
+
+    config MQTT_PASSWORD
+        string "MQTT password (empty = none)"
+        default ""
+
+    config FW_VERSION
+        string "Firmware version reported in status"
+        default "0.1.0"
+
+endmenu
