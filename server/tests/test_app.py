@@ -155,3 +155,13 @@ def test_frame_slots_keep_only_latest():
     slots.put("bbbbbbbbbbbb", 1.0, b"other")
     assert slots.take_all(timeout=0) == {MAC: (2.0, b"new"), "bbbbbbbbbbbb": (1.0, b"other")}
     assert slots.take_all(timeout=0) == {}
+
+
+def test_on_message_never_raises(monkeypatch):
+    app, _ = make_app()
+
+    def boom(mac, payload):
+        raise RuntimeError("bug in handler")
+
+    monkeypatch.setattr(app, "_on_image", boom)
+    app.on_message(f"{MAC}/image", protocol.pack_image(1, b"jpeg"))

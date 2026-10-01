@@ -43,7 +43,9 @@ def build_message(argv: list[str], current_config: dict | None = None) -> tuple[
         if not args.fields:
             raise protocol.ProtocolError("config needs at least one key=value")
         updates = protocol.parse_config_args(args.fields)
-        merged = protocol.merge_config(current_config or protocol.DEFAULT_CONFIG, updates)
+        # No retained config known: publish only the updates. The device keeps
+        # its current value for every missing field (spec §4).
+        merged = protocol.merge_config(current_config or {}, updates)
         return protocol.topic(args.mac, "config"), json.dumps(merged).encode(), 1, True
     return protocol.topic(args.mac, "cmd"), protocol.cmd_payload(args.command), 1, False
 
@@ -77,6 +79,16 @@ def _fetch_retained_config(client: mqtt.Client, mac: str, timeout: float = 2.0) 
     return result.get("cfg")
 
 
+def publish_confirmed(client, t: str, payload: bytes, qos: int, retain: bool, timeout: float = 5.0) -> bool:
+    """Publish and wait for the broker's acknowledgement. False if it never came."""
+    info = client.publish(t, payload, qos=qos, retain=retain)
+    try:
+        info.wait_for_publish(timeout=timeout)
+    except (RuntimeError, ValueError):
+        return False
+    return info.is_published()
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = sys.argv[1:] if argv is None else argv
     s = Settings()
@@ -94,7 +106,9 @@ def main(argv: list[str] | None = None) -> int:
         except protocol.ProtocolError as e:
             print(f"error: {e}", file=sys.stderr)
             return 2
-        client.publish(t, payload, qos=qos, retain=retain).wait_for_publish(timeout=5)
+        if not publish_confirmed(client, t, payload, qos, retain):
+            print(f"error: broker did not confirm {t} (check connection and credentials)", file=sys.stderr)
+            return 1
         print(f"sent {t} {payload.decode()}")
         return 0
     finally:

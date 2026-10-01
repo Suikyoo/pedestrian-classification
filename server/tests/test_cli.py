@@ -29,9 +29,9 @@ def test_config_merges_into_current_and_is_retained():
     assert json.loads(payload) == {**current, "interval_ms": 500}
 
 
-def test_config_without_current_uses_defaults():
+def test_config_without_current_publishes_only_updates():
     _, payload, _, _ = build_message(["config", MAC, "volume=60"], None)
-    assert json.loads(payload) == {**protocol.DEFAULT_CONFIG, "volume": 60}
+    assert json.loads(payload) == {"volume": 60}
 
 
 @pytest.mark.parametrize("args", [["volum=50"], ["volume=150"], ["frame_size=vga"], []])
@@ -66,3 +66,29 @@ def test_retained_config_rejects_other_topics_and_non_objects(topic, payload):
     from master.cli import parse_retained_config
 
     assert parse_retained_config(topic, MAC, payload) is None
+
+
+class FakeInfo:
+    def __init__(self, published):
+        self.published = published
+
+    def wait_for_publish(self, timeout=None):
+        pass
+
+    def is_published(self):
+        return self.published
+
+
+class FakeClient:
+    def __init__(self, published):
+        self.published = published
+
+    def publish(self, topic, payload, qos=0, retain=False):
+        return FakeInfo(self.published)
+
+
+@pytest.mark.parametrize("published, expected", [(True, True), (False, False)])
+def test_publish_confirmed_reports_delivery(published, expected):
+    from master.cli import publish_confirmed
+
+    assert publish_confirmed(FakeClient(published), f"{MAC}/cmd", b"{}", 1, False) is expected

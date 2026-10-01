@@ -84,3 +84,9 @@ def test_alert_carries_dwell_and_max_conf():
         alert = logic.update(MAC, t, conf) or alert
     assert alert == Alert(first_seen=10, ts=15, max_conf=0.95)
     assert alert.dwell_s == 5
+
+
+def test_large_backward_clock_jump_resets_and_accepts():
+    logic = make()
+    feed(logic, [(t, POS) for t in range(1000, 1003)])  # clock was far ahead
+    assert feed(logic, [(t, POS) for t in range(10, 16)]) == [15]

@@ -37,7 +37,10 @@ class DwellLogic:
         s = self._states.setdefault(mac, _State())
 
         if s.last_ts is not None and ts <= s.last_ts:
-            return None
+            if s.last_ts - ts <= self.max_gap_s:
+                return None  # late or duplicate frame
+            # Clock jumped backward (e.g. bad SNTP answer corrected): start over.
+            s = self._states[mac] = _State()
         s.last_ts = ts
 
         if s.last_seen is not None and ts - s.last_seen > self.max_gap_s:

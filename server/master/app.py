@@ -47,8 +47,15 @@ class MasterApp:
         self._lock = threading.Lock()  # guards logic and _ts_source across threads
         self._ts_source: dict[str, str] = {}  # mac -> "device" | "server"
 
-    # Called on the MQTT network thread.
+    # Called on the MQTT network thread. Must never raise: an exception here
+    # stops paho's network loop and the server would stop receiving.
     def on_message(self, topic: str, payload: bytes) -> None:
+        try:
+            self._dispatch(topic, payload)
+        except Exception:
+            log.exception("error handling message on %r", topic)
+
+    def _dispatch(self, topic: str, payload: bytes) -> None:
         parsed = protocol.parse_topic(topic)
         if parsed is None:
             log.warning("ignoring message on unexpected topic %r", topic)
