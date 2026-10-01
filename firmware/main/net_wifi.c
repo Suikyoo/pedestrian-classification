@@ -19,7 +19,11 @@ static backoff_t s_backoff;
 
 static void retry_cb(void *arg)
 {
-    esp_wifi_connect();
+    esp_err_t err = esp_wifi_connect();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "esp_wifi_connect failed: %s", esp_err_to_name(err));
+        esp_timer_start_once(s_retry_timer, (uint64_t)backoff_next_ms(&s_backoff) * 1000);
+    }
 }
 
 static void on_event(void *arg, esp_event_base_t base, int32_t id, void *data)
@@ -63,6 +67,9 @@ esp_err_t net_start(void)
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
     ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); /* lower latency for frame uploads */
+    if (CONFIG_WIFI_SSID[0] == '\0') {
+        ESP_LOGE(TAG, "WIFI_SSID is empty: set it in menuconfig > Pedestrian Edge");
+    }
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_LOGI(TAG, "connecting to \"%s\"", CONFIG_WIFI_SSID);
     return ESP_OK;

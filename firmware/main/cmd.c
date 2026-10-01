@@ -58,7 +58,10 @@ static void handle_config(const char *data, size_t len)
     }
     config_store_set(&next);
     if (next.frame_size != cur.frame_size || next.jpeg_quality != cur.jpeg_quality) {
-        camera_apply(&next);
+        esp_err_t err = camera_apply(&next);
+        if (err != ESP_OK) {
+            ESP_LOGE(TAG, "camera did not accept frame size/quality: %s", esp_err_to_name(err));
+        }
     }
     audio_set_volume(next.volume);
     ESP_LOGI(TAG, "config: interval_ms=%lu quality=%u frame=%s volume=%u",

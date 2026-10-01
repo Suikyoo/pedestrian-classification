@@ -70,6 +70,10 @@ esp_err_t mqtt_link_start(const char *device_id, const mqtt_link_handlers_t *han
         return ESP_ERR_INVALID_ARG;
     }
 
+    if (strstr(CONFIG_MQTT_URI, "example.com") != NULL) {
+        ESP_LOGW(TAG, "MQTT_URI is still the example value: set it in menuconfig > Pedestrian Edge");
+    }
+
     esp_mqtt_client_config_t cfg = {
         .broker.address.uri = CONFIG_MQTT_URI,
         .broker.verification.crt_bundle_attach = esp_crt_bundle_attach,
