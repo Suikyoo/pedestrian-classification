@@ -86,7 +86,7 @@ esp_err_t mqtt_link_start(const char *device_id, const mqtt_link_handlers_t *han
         },
         .network.reconnect_timeout_ms = 5000,
         .buffer.size = 4096,
-        .buffer.out_size = 160 * 1024, /* whole JPEG frame + header; allocated in PSRAM */
+        .buffer.out_size = 160 * 1024, /* outbound buffer in PSRAM; larger frames are sent in chunks */
     };
     s_client = esp_mqtt_client_init(&cfg);
     if (s_client == NULL) {
