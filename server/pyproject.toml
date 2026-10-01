@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pedestrian-master"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "paho-mqtt>=2.0",
+    "ultralytics>=8.3",
+    "pydantic-settings>=2.0",
+    "pillow>=10",
+    "numpy",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+pedestrian-master = "master.app:main"
+
+[tool.setuptools.packages.find]
+include = ["master*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "slow: loads the YOLO model (downloads yolo11n.pt on first run)",
+    "integration: needs Mosquitto listening on 127.0.0.1:1883",
+]
