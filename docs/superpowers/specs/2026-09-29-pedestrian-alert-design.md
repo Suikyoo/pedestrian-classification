@@ -1,7 +1,7 @@
 # Pedestrian Alert System — Design
 
 Date: 2026-09-29
-Status: Draft for review
+Status: Approved; firmware section revised 2026-10-01 (network abstraction, Wi-Fi first, Freenove board)
 
 ## 1. Goal
 
@@ -31,6 +31,21 @@ The master can also send instructions to each device: start/stop streaming, chan
 
 ### Edge device
 
+Development board (now): **Freenove ESP32-S3-WROOM CAM** (OV2640, octal PSRAM, Wi-Fi only). The firmware runs over Wi-Fi on this board until the LTE board is available. Network and pins are behind abstractions (§6), so moving to the LTE board means adding `net_lte.c` and a board header, with no change to `main.c` or the application modules.
+
+Freenove pins (`board_freenove_s3cam.h`):
+
+| Function | GPIO |
+|---|---|
+| Camera XCLK / SIOD / SIOC | 15 / 4 / 5 |
+| Camera D0–D7 | 11, 9, 8, 10, 12, 18, 17, 16 |
+| Camera VSYNC / HREF / PCLK | 6 / 7 / 13 |
+| Camera PWDN / RESET | not connected (-1) |
+| Audio PWM → PAM8403 | 14 |
+| Battery ADC | none (-1); status reports `battery_mv: 0` |
+
+Target board (later):
+
 - Board: **Waveshare ESP32-S3-SIM7670G-4G** (global LTE bands) or **ESP32-S3-A7670E-4G** (EMEA/Asia bands). Choose by the carrier's LTE bands.
   - ESP32-S3 with PSRAM, 24-pin camera connector (OV2640/OV5640), LTE Cat-1 modem, 18650 holder, solar input.
 - Camera: OV2640 or OV5640 via `esp32-camera`.
@@ -58,7 +73,7 @@ Software `volume` scales samples below that maximum.
 
 ### Pin assignment
 
-All GPIO numbers live in `firmware/main/board.h` and are taken from the Waveshare schematic for the chosen board variant. The PWM audio pin must not be shared with the camera, modem UART/PWRKEY, SD card lines, or boot-strapping pins.
+All GPIO numbers live in a board header selected by Kconfig `BOARD` and included through `firmware/main/board.h`. Each board header is taken from that board's schematic. The PWM audio pin must not be shared with the camera, modem UART/PWRKEY, SD card lines, or boot-strapping pins.
 
 ### Master
 
@@ -79,7 +94,7 @@ Any PC able to run Python 3.11+. YOLO11n runs on CPU (≈ 20–50 ms per 640 px 
                         master (Python): ingest -> detect -> logic -> publish
 ```
 
-- The device reaches the network through the modem in PPP mode (`esp_modem`), so the standard ESP-IDF network stack, TLS, and `esp-mqtt` work over LTE unchanged.
+- Development: the device reaches the network over Wi-Fi. Target: the device reaches the network through the modem in PPP mode (`esp_modem`), so the standard ESP-IDF network stack, TLS, and `esp-mqtt` work over LTE unchanged.
 - The broker is Mosquitto on the master PC. Neither listener is exposed on the LAN or router; `cloudflared` publishes the websockets listener on a public hostname.
 - Cloudflare Tunnel public hostnames forward HTTP(S)/WebSocket only, so devices use **MQTT over WSS on port 443**. Cloudflare terminates TLS; the device verifies it with `esp_crt_bundle`.
 - The master's Python service connects to Mosquitto directly on `localhost:1883`.
@@ -235,24 +250,51 @@ ESP-IDF v5.x, C.
 ```
 firmware/
   CMakeLists.txt
-  partitions.csv          # nvs, phy_init, factory app (≥ 4 MB)
-  sdkconfig.defaults      # octal PSRAM, PPP, cert bundle, task WDT
-  Kconfig.projbuild       # MQTT_URI, MQTT_USERNAME, MQTT_PASSWORD, NET_WIFI, WIFI_SSID, WIFI_PASS
+  partitions.csv            # nvs, phy_init, factory app (>= 4 MB)
+  sdkconfig.defaults        # octal PSRAM, cert bundle, task WDT
   main/
-    main.c                # boot sequence, task start
-    board.h               # all GPIO numbers
-    net_lte.c/.h          # esp_modem PPP bring-up, reconnect with backoff, CSQ -> rssi
-    net_wifi.c/.h         # bench-only Wi-Fi alternative (NET_WIFI)
-    mqtt_link.c/.h        # esp-mqtt over wss, LWT, subscriptions, dispatch
-    camera.c/.h           # esp32-camera init/reconfigure, capture -> header + JPEG
-    stream.c/.h           # capture loop task
-    audio.c/.h            # LEDC 78 kHz 8-bit carrier + gptimer ISR at 16 kHz
-    config.c/.h           # parse config JSON (cJSON), apply, persist to NVS
-    status.c/.h           # battery ADC, uptime, status publishing
-    assets/alert.raw      # 8-bit unsigned PCM, mono, 16 kHz (EMBED_FILES)
+    CMakeLists.txt          # compiles exactly one net backend, selected by Kconfig
+    Kconfig.projbuild       # BOARD, NET_BACKEND, WIFI_SSID, WIFI_PASSWORD, MQTT_URI, MQTT_USERNAME, MQTT_PASSWORD
+    idf_component.yml       # espressif/esp32-camera
+    main.c                  # boot sequence; calls only module interfaces
+    board.h                 # includes the board header selected by Kconfig BOARD
+    boards/freenove_s3cam.h # pins for the Freenove ESP32-S3-WROOM CAM
+    net.h                   # network interface (below)
+    net_wifi.c              # Wi-Fi implementation of net.h
+    mqtt_link.c/.h          # esp-mqtt over wss, LWT, subscriptions, dispatch to cmd queue
+    cmd.c/.h                # command task: applies alert/cmd/config messages
+    camera.c/.h             # esp32-camera init/reconfigure, capture
+    stream.c/.h             # capture loop task
+    audio.c/.h              # LEDC 78 kHz 8-bit carrier + gptimer ISR at 16 kHz
+    config_store.c/.h       # load/save runtime config in NVS
+    status.c/.h             # uptime, rssi, battery, status publishing
+    assets/alert.raw        # 8-bit unsigned PCM, mono, 16 kHz (EMBED_FILES)
+  components/core/          # pure C: no ESP-IDF headers; compiled by both IDF and host tests
+    include/core/proto.h    # topic building, image header packing
+    include/core/devcfg.h   # runtime config struct, JSON parse/merge/validate/serialize
+    include/core/backoff.h  # reconnect backoff steps
+    include/core/pcm.h      # volume scaling of 8-bit unsigned samples
+    proto.c devcfg.c backoff.c pcm.c
+  test/host/                # gcc unit tests for components/core (no ESP-IDF needed)
   tools/
-    wav2raw.py            # converts a WAV file to alert.raw
+    wav2raw.py              # converts a WAV file to alert.raw
 ```
+
+Later, for the LTE board: add `net_lte.c` (esp_modem PPP) and `boards/waveshare_s3_4g.h`, and add the matching Kconfig choices. No other file changes.
+
+### Network interface (`net.h`)
+
+```c
+esp_err_t net_start(void);                   // start the link; returns at once
+bool      net_wait_connected(TickType_t t);  // true once an IP address is held
+int       net_rssi(void);                    // signal in dBm; 0 if unknown
+```
+
+`main/CMakeLists.txt` compiles `net_wifi.c` when `CONFIG_NET_BACKEND_WIFI` is set (the only choice in v1). The backend reconnects on its own using `core/backoff.h` (5 s, 10 s, 30 s, 60 s, capped).
+
+### Modularity rule
+
+`main.c` includes only module headers (`net.h`, `mqtt_link.h`, `camera.h`, `audio.h`, `stream.h`, `status.h`, `cmd.h`, `config_store.h`). It never calls Wi-Fi, LTE, LEDC, or camera driver APIs directly. Pin numbers appear only in `boards/*.h`.
 
 ### Configuration and credentials
 
@@ -265,7 +307,7 @@ firmware/
 1. Init NVS; load runtime config.
 2. Init camera with the loaded config.
 3. Init audio (LEDC + gptimer, idle).
-4. Network: `NET_WIFI` → Wi-Fi; otherwise pulse modem PWRKEY, start PPP, wait for IP.
+4. Network: `net_start()`, then `net_wait_connected()`.
 5. Start SNTP. Frames before sync carry `capture_ms=0`.
 6. Connect MQTT with LWT `{mac}/online="0"` (QoS 1, retained). On connect: publish `{mac}/online="1"` retained; subscribe `{mac}/alert`, `{mac}/cmd`, `{mac}/config`; publish status.
 7. Start `stream` and `status` tasks.
@@ -281,7 +323,7 @@ firmware/
 
 | Failure | Behavior |
 |---|---|
-| PPP drop | restart modem and PPP with backoff 5 s, 10 s, 30 s, 60 s (capped) |
+| Network drop | `net` backend reconnects with backoff 5 s, 10 s, 30 s, 60 s (capped) |
 | MQTT drop | esp-mqtt auto-reconnect |
 | 5 consecutive camera capture failures | re-init camera; if re-init fails, reboot |
 | Hung task | task watchdog reboots the device |
@@ -308,7 +350,8 @@ Enabling auth later needs no code change:
 
 ### Firmware
 
-- Unity tests (on target) for config JSON parse/merge and image header packing.
-- Bench bring-up over Wi-Fi (`NET_WIFI`): camera → MQTT → server detection → alert → audio.
-- Then LTE bring-up with a SIM.
+- Host unit tests (gcc, on any PC) for `components/core`: image header packing, topic building, config JSON parse/merge/validate/serialize, backoff steps, PCM volume scaling.
+- Hardware-dependent modules are verified by building with `idf.py build` and running on the board (done on the machine that has ESP-IDF).
+- Bench bring-up over Wi-Fi on the Freenove board: camera → MQTT → server detection → alert → audio.
+- Later, LTE bring-up with a SIM on the Waveshare board.
 - End to end: a person stands in view for N seconds → sound plays; a person walks through quickly → no sound.

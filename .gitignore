@@ -19,3 +19,6 @@ firmware/managed_components/
 # Tooling scratch
 .superpowers/
 .remember/
+
+# Firmware host tests
+firmware/test/host/build/
