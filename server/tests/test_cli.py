@@ -44,3 +44,25 @@ def test_config_rejects_bad_values(args):
 def test_rejects_malformed_mac(mac):
     with pytest.raises(protocol.ProtocolError):
         build_message(["status", mac])
+
+
+def test_retained_config_accepts_object_on_own_topic():
+    from master.cli import parse_retained_config
+
+    assert parse_retained_config(f"{MAC}/config", MAC, b'{"volume": 60}') == {"volume": 60}
+
+
+@pytest.mark.parametrize(
+    "topic, payload",
+    [
+        (f"{MAC}/online", b'{"volume": 60}'),
+        (f"{MAC}/config", b"0"),
+        (f"{MAC}/config", b"[1, 2]"),
+        (f"{MAC}/config", b"not json"),
+        (f"{MAC}/config", b""),
+    ],
+)
+def test_retained_config_rejects_other_topics_and_non_objects(topic, payload):
+    from master.cli import parse_retained_config
+
+    assert parse_retained_config(topic, MAC, payload) is None

@@ -48,17 +48,27 @@ def build_message(argv: list[str], current_config: dict | None = None) -> tuple[
     return protocol.topic(args.mac, "cmd"), protocol.cmd_payload(args.command), 1, False
 
 
+def parse_retained_config(msg_topic: str, mac: str, payload: bytes) -> dict | None:
+    """The retained config for `mac`, or None if this message is not a usable config."""
+    if msg_topic != protocol.topic(mac, "config"):
+        return None
+    try:
+        cfg = json.loads(payload)
+    except ValueError:
+        return None
+    return cfg if isinstance(cfg, dict) else None
+
+
 def _fetch_retained_config(client: mqtt.Client, mac: str, timeout: float = 2.0) -> dict | None:
     """Read the retained {mac}/config, or None if there is none."""
     got = threading.Event()
     result: dict = {}
 
     def on_message(c, u, m):
-        try:
-            result["cfg"] = json.loads(m.payload)
-        except ValueError:
-            pass
-        got.set()
+        cfg = parse_retained_config(m.topic, mac, m.payload)
+        if cfg is not None:
+            result["cfg"] = cfg
+            got.set()
 
     client.on_message = on_message
     client.subscribe(protocol.topic(mac, "config"), qos=1)
