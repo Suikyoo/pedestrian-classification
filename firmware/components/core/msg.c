@@ -18,11 +18,13 @@ msg_cmd_t msg_parse_cmd(const char *json, size_t len)
     };
     msg_cmd_t result = MSG_CMD_NONE;
     cJSON *root = cJSON_ParseWithLength(json, len);
-    const cJSON *action = cJSON_GetObjectItemCaseSensitive(root, "action");
-    if (cJSON_IsString(action)) {
-        for (size_t i = 0; i < sizeof ACTIONS / sizeof ACTIONS[0]; i++) {
-            if (strcmp(action->valuestring, ACTIONS[i].name) == 0) {
-                result = ACTIONS[i].cmd;
+    if (cJSON_IsObject(root)) {
+        const cJSON *action = cJSON_GetObjectItemCaseSensitive(root, "action");
+        if (cJSON_IsString(action)) {
+            for (size_t i = 0; i < sizeof ACTIONS / sizeof ACTIONS[0]; i++) {
+                if (strcmp(action->valuestring, ACTIONS[i].name) == 0) {
+                    result = ACTIONS[i].cmd;
+                }
             }
         }
     }
@@ -34,11 +36,13 @@ int msg_parse_alert_repeat(const char *json, size_t len)
 {
     int repeat = 1;
     cJSON *root = cJSON_ParseWithLength(json, len);
-    const cJSON *r = cJSON_GetObjectItemCaseSensitive(root, "repeat");
-    if (cJSON_IsNumber(r)) {
-        double v = r->valuedouble;
-        if (v >= 1 && v <= 10 && v == (double)(int)v) {
-            repeat = (int)v;
+    if (cJSON_IsObject(root)) {
+        const cJSON *r = cJSON_GetObjectItemCaseSensitive(root, "repeat");
+        if (cJSON_IsNumber(r)) {
+            double v = r->valuedouble;
+            if (v >= 1 && v <= 10 && v == (double)(int)v) {
+                repeat = (int)v;
+            }
         }
     }
     cJSON_Delete(root);

@@ -14,6 +14,8 @@ static void test_cmd(void)
     CHECK_INT(msg_parse_cmd(J("{}")), MSG_CMD_NONE);
     CHECK_INT(msg_parse_cmd(J("{")), MSG_CMD_NONE);
     CHECK_INT(msg_parse_cmd(J("")), MSG_CMD_NONE);
+    CHECK_INT(msg_parse_cmd(J("[\"stop\"]")), MSG_CMD_NONE);
+    CHECK_INT(msg_parse_cmd(J("[\"reboot\"]")), MSG_CMD_NONE);
     const char raw[] = "{\"action\":\"stop\"}JUNK";
     CHECK_INT(msg_parse_cmd(raw, 17), MSG_CMD_STOP);
 }
@@ -28,6 +30,7 @@ static void test_alert_repeat(void)
     CHECK_INT(msg_parse_alert_repeat(J("{\"repeat\":2.5}")), 1);
     CHECK_INT(msg_parse_alert_repeat(J("garbage")), 1);
     CHECK_INT(msg_parse_alert_repeat(J("")), 1);
+    CHECK_INT(msg_parse_alert_repeat(J("[3]")), 1);
 }
 
 static void test_status(void)
