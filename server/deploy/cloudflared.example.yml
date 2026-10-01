@@ -1,0 +1,8 @@
+# Copy to %USERPROFILE%\.cloudflared\config.yml and fill in the tunnel ID and hostname.
+# Devices connect to wss://mqtt.<domain>:443/mqtt
+tunnel: <TUNNEL_ID>
+credentials-file: C:\Users\<you>\.cloudflared\<TUNNEL_ID>.json
+ingress:
+  - hostname: mqtt.<domain>
+    service: http://localhost:9001
+  - service: http_status:404
