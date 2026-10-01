@@ -122,6 +122,43 @@ static void test_frame_names(void)
     CHECK(!devcfg_frame_from_name("4K", &out));
 }
 
+static void test_valid(void)
+{
+    devcfg_t c;
+    devcfg_defaults(&c);
+    CHECK(devcfg_valid(&c));
+
+    devcfg_defaults(&c); c.interval_ms = 0;
+    CHECK(!devcfg_valid(&c));
+    devcfg_defaults(&c); c.interval_ms = 99;
+    CHECK(!devcfg_valid(&c));
+    devcfg_defaults(&c); c.interval_ms = 3600001;
+    CHECK(!devcfg_valid(&c));
+    devcfg_defaults(&c); c.jpeg_quality = 64;
+    CHECK(!devcfg_valid(&c));
+    devcfg_defaults(&c); c.frame_size = DEVCFG_FRAME_COUNT;
+    CHECK(!devcfg_valid(&c));
+    devcfg_defaults(&c); c.volume = 101;
+    CHECK(!devcfg_valid(&c));
+
+    devcfg_defaults(&c); c.interval_ms = 100;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.interval_ms = 3600000;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.jpeg_quality = 0;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.jpeg_quality = 63;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.volume = 0;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.volume = 100;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.frame_size = DEVCFG_FRAME_UXGA;
+    CHECK(devcfg_valid(&c));
+    devcfg_defaults(&c); c.streaming = false;
+    CHECK(devcfg_valid(&c));
+}
+
 void test_devcfg(void)
 {
     test_defaults();
@@ -133,4 +170,5 @@ void test_devcfg(void)
     test_respects_length();
     test_equal();
     test_frame_names();
+    test_valid();
 }

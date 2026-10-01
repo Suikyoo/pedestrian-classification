@@ -31,6 +31,9 @@ void devcfg_defaults(devcfg_t *c);
  * NUL-terminated. */
 bool devcfg_apply_json(devcfg_t *c, const char *json, size_t len);
 
+/* True if every field is within the protocol ranges. */
+bool devcfg_valid(const devcfg_t *c);
+
 bool devcfg_equal(const devcfg_t *a, const devcfg_t *b);
 
 const char *devcfg_frame_name(devcfg_frame_t f);

@@ -30,9 +30,12 @@ esp_err_t config_store_init(void)
     if (nvs_open(NS, NVS_READONLY, &h) == ESP_OK) {
         devcfg_t stored;
         size_t size = sizeof stored;
-        if (nvs_get_blob(h, KEY, &stored, &size) == ESP_OK && size == sizeof stored) {
+        esp_err_t gerr = nvs_get_blob(h, KEY, &stored, &size);
+        if (gerr == ESP_OK && size == sizeof stored && devcfg_valid(&stored)) {
             s_cfg = stored;
             ESP_LOGI(TAG, "loaded config from NVS");
+        } else if (gerr == ESP_OK) {
+            ESP_LOGW(TAG, "stored config invalid, using defaults");
         }
         nvs_close(h);
     }

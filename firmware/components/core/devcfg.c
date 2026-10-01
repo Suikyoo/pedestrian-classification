@@ -95,3 +95,11 @@ bool devcfg_apply_json(devcfg_t *c, const char *json, size_t len)
     }
     return ok;
 }
+
+bool devcfg_valid(const devcfg_t *c)
+{
+    return c->interval_ms >= 100 && c->interval_ms <= 3600000 &&
+           c->jpeg_quality <= 63 &&
+           (unsigned)c->frame_size < DEVCFG_FRAME_COUNT &&
+           c->volume <= 100;
+}
