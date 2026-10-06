@@ -315,12 +315,26 @@ async function addFrames(strip, rows) {
     strip.ids.delete(Number(last.dataset.id));
     last.remove();
   }
+  syncInert(strip);
+}
+
+function visibleSlots(strip) {
+  if (strip.section.classList.contains("strip--expanded")) return Infinity;
+  const cols = getComputedStyle(strip.list).gridTemplateColumns.split(" ").filter(Boolean).length;
+  return Math.max(1, cols);
+}
+
+// Tiles clipped out of a collapsed strip must not take focus or reach the accessibility tree.
+function syncInert(strip) {
+  const visible = visibleSlots(strip);
+  [...strip.list.children].forEach((li, i) => { li.inert = i >= visible; });
 }
 
 function renderStripVisibility() {
   for (const [mac, strip] of state.strips) {
     strip.section.hidden = Boolean(state.selected) && mac !== state.selected;
     strip.section.classList.toggle("strip--expanded", mac === state.selected);
+    syncInert(strip);
   }
 }
 
@@ -337,7 +351,8 @@ async function renderStrips(decorated) {
     }
     strip.stateEl.textContent = st.detail ? `${st.label} · ${st.detail}` : st.label;
     strip.head.classList.toggle("is-warning", st.kind === "warning");
-    container.append(strip.section); // same order as the devices timetable
+    // Strips keep the order devices first appeared in, so photos never jump when a status changes.
+    if (!strip.section.isConnected) container.append(strip.section);
     if (!strip.loaded) {
       strip.loaded = true;
       const params = new URLSearchParams({ mac: d.mac, limit: String(FRAMES_PER_DEVICE) });
@@ -437,6 +452,7 @@ function init() {
   });
   $("#show-all").addEventListener("click", () => selectDevice(state.selected));
   $("#viewer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
+  window.addEventListener("resize", () => { for (const strip of state.strips.values()) syncInert(strip); });
   every(POLL_MS, pollStatus);
   every(WARNINGS_MS, async () => renderWarnings(await getJSON("/api/alerts")));
 }

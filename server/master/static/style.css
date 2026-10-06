@@ -158,6 +158,11 @@ h1, h2, p { margin: 0; }
 .status--warning .status__word { color: var(--red-text); }
 tr.is-warning { background-color: var(--red-wash); }
 tr.is-warning:hover { background-color: #451a18; }
+/* A selected warning keeps its red row; selection shows as an outline instead. */
+.timetable--devices tbody tr.is-warning.is-selected {
+  background-color: var(--red-wash); color: var(--text);
+  outline: 2px solid var(--board-text); outline-offset: -2px;
+}
 
 /* Per-device dwell dial */
 .dial { width: 36px; height: 36px; display: block; }
