@@ -12,10 +12,12 @@ dependencies = [
     "pydantic-settings>=2.0",
     "pillow>=10",
     "numpy",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "httpx>=0.27"]
 
 [project.scripts]
 pedestrian-master = "master.app:main"
@@ -23,8 +25,15 @@ pedestrian-master = "master.app:main"
 [tool.setuptools.packages.find]
 include = ["master*"]
 
+[tool.setuptools.package-data]
+master = ["static/*"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+filterwarnings = [
+    # Starlette deprecates httpx in its TestClient; harmless for our tests.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated",
+]
 markers = [
     "slow: loads the YOLO model (downloads yolo11n.pt on first run)",
     "integration: needs Mosquitto listening on 127.0.0.1:1883",
