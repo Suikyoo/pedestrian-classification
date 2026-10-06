@@ -1,4 +1,11 @@
-/* Station Clock Timetable: Swiss timetable grid, one sans, red only for the seconds hand and warnings. */
+/* Station Clock Timetable: Swiss timetable grid, one neo-grotesque, red only for the seconds hand and warnings. */
+@font-face {
+  font-family: "Arimo";
+  src: url("/static/fonts/Arimo.ttf") format("truetype");
+  font-weight: 400 700;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   --ground: #121417;
@@ -7,15 +14,16 @@
   --line: #2c3036;
   --text: #ecece8;
   --muted: #9aa0a7;
-  --rest: #6b7178;
+  --rest: #858b92;
   --board: #1d2858;
   --board-line: #2c3a78;
   --board-text: #f2f2ee;
+  --board-muted: #c3c8de;
   --red: #eb0000;
   --red-text: #ff6b5e;
   --red-wash: #3a1514;
   --focus: #f2f2ee;
-  --font: "Helvetica Neue", Helvetica, "Segoe UI", Arial, sans-serif;
+  --font: "Arimo", "Helvetica Neue", Helvetica, Arial, sans-serif;
   --s-1: 4px; --s-2: 8px; --s-3: 12px; --s-4: 16px; --s-5: 24px; --s-6: 32px;
 }
 
@@ -47,19 +55,19 @@ h1, h2, p { margin: 0; }
   border-bottom: 1px solid var(--board-line);
   position: sticky; top: 0; z-index: 2;
 }
-.band__id { display: flex; align-items: center; gap: var(--s-3); margin-right: auto; }
-.band h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
-.band__time { font-size: 13px; color: #c3c8de; }
+.band__id { display: flex; align-items: center; gap: var(--s-4); margin-right: auto; }
+.band__time { font-size: 30px; font-weight: 700; letter-spacing: -0.01em; line-height: 1; }
+.band h1 { font-size: 15px; font-weight: 400; color: var(--board-muted); }
 .settings { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-5); margin: 0; }
 .settings div { display: flex; gap: var(--s-2); align-items: baseline; }
 .settings dt { font-size: 12px; color: #b8bed6; }
 .settings dd { margin: 0; font-weight: 700; }
 .band__controls { display: flex; align-items: center; gap: var(--s-4); }
-.link-state { font-size: 13px; color: #c3c8de; min-width: 9ch; text-align: right; }
+.link-state { font-size: 13px; color: var(--board-muted); min-width: 10ch; text-align: right; }
 .link-state[data-state="down"] { color: #ffb4ab; }
 
 /* Station clock */
-.clock { width: 44px; height: 44px; flex: none; }
+.clock { width: 52px; height: 52px; flex: none; }
 .clock__face { fill: #f2f2ee; }
 .clock__ticks line { stroke: #121417; stroke-width: 2.2; }
 .clock__ticks line.major { stroke-width: 5; }
@@ -103,8 +111,8 @@ h1, h2, p { margin: 0; }
   align-items: start;
 }
 .status-column {
-  position: sticky; top: 92px;
-  max-height: calc(100vh - 92px - var(--s-5));
+  position: sticky; top: 100px;
+  max-height: calc(100vh - 100px - var(--s-5));
   overflow-y: auto;
   display: grid; gap: var(--s-6);
   padding-right: var(--s-1);
@@ -132,19 +140,22 @@ h1, h2, p { margin: 0; }
 
 .timetable--devices tbody tr { cursor: pointer; }
 .timetable--devices tbody tr:hover { background: var(--panel); }
-.timetable--devices tbody tr[aria-selected="true"] { background: var(--panel-raised); }
-.timetable--devices tbody tr[aria-selected="true"] td:first-child { box-shadow: inset 2px 0 0 var(--text); }
+.timetable--devices tbody tr.is-selected { background: var(--board); color: var(--board-text); }
+.timetable--devices tbody tr.is-selected .status--clear .status__word,
+.timetable--devices tbody tr.is-selected .status__detail { color: var(--board-muted); }
 .col-dial { width: 52px; }
 .device-select {
-  font: inherit; color: var(--text); background: none; border: 0; padding: 0;
+  font: inherit; color: inherit; background: none; border: 0; padding: 0;
   cursor: pointer; text-align: left; font-weight: 700; letter-spacing: 0.01em;
   overflow-wrap: anywhere;
 }
-.status { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; white-space: nowrap; }
+.status { display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
+.status__word { font-weight: 700; display: inline-flex; align-items: baseline; gap: 6px; }
+.status__word .icon { align-self: center; }
 .status__detail { font-weight: 400; color: var(--muted); }
-.status--clear { color: var(--muted); font-weight: 400; }
-.status--nosignal { color: var(--rest); font-weight: 400; }
-.status--warning { color: var(--red-text); }
+.status--clear .status__word { color: var(--muted); font-weight: 400; }
+.status--nosignal .status__word { color: var(--rest); font-weight: 400; }
+.status--warning .status__word { color: var(--red-text); }
 tr.is-warning { background-color: var(--red-wash); }
 tr.is-warning:hover { background-color: #451a18; }
 
@@ -152,8 +163,9 @@ tr.is-warning:hover { background-color: #451a18; }
 .dial { width: 36px; height: 36px; display: block; }
 .dial__face { fill: var(--panel-raised); stroke: var(--line); stroke-width: 2; }
 .dial__tick { stroke: var(--muted); stroke-width: 3; }
-.dial__arc { fill: none; stroke: var(--red); stroke-width: 7; opacity: 0.35; }
+.dial__tick.limit { stroke: var(--red); stroke-width: 7; }
 .dial__hand { transform-box: view-box; transform-origin: 50px 50px; transition: transform 1.9s linear; }
+.dial__hand.is-snapping { transition: none; }
 .dial__hand line { stroke: var(--rest); stroke-width: 3; }
 .dial__hand circle { fill: var(--rest); }
 .dial[data-kind="pedestrian"] .dial__hand line, .dial[data-kind="warning"] .dial__hand line { stroke: var(--red); }
@@ -165,12 +177,22 @@ tr.is-warning:hover { background-color: #451a18; }
 .dial[data-kind="nosignal"] .dial__face { fill: none; stroke-dasharray: 6 6; }
 .dial[data-kind="nosignal"] .dial__hand { display: none; }
 
-/* Frames */
-.frames {
-  list-style: none; margin: 0; padding: 0;
-  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: var(--s-4) var(--s-3);
+/* Frames: one timetable strip per device, newest on the left */
+.strips { display: grid; gap: var(--s-5); }
+.strip__head {
+  display: flex; align-items: baseline; gap: var(--s-3);
+  padding: 6px var(--s-2); background: var(--board); color: var(--board-text);
+  font-size: 12px; font-weight: 700;
 }
+.strip__head .strip__state { font-weight: 400; color: var(--board-muted); }
+.strip__head.is-warning { background: var(--red-wash); }
+.strip__frames {
+  list-style: none; margin: 0; padding: var(--s-2) 0 0;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  grid-template-rows: auto; grid-auto-rows: 0; row-gap: 0; column-gap: var(--s-2);
+  overflow: hidden;
+}
+.strip--expanded .strip__frames { grid-auto-rows: auto; row-gap: var(--s-3); }
 .frame { min-width: 0; }
 .frame__image {
   display: block; width: 100%; padding: 0; border: 0; background: var(--panel);
@@ -181,20 +203,18 @@ tr.is-warning:hover { background-color: #451a18; }
 .frame__stamp {
   position: absolute; left: 0; top: 0;
   display: inline-flex; align-items: center; gap: 4px;
-  background: var(--red); color: #fff; font-size: 12px; font-weight: 700;
-  padding: 3px 8px 3px 6px;
+  background: var(--red); color: #fff; font-size: 11px; font-weight: 700;
+  padding: 2px 6px 2px 4px;
 }
-.frame__stamp .icon { width: 14px; height: 14px; }
+.frame__stamp .icon { width: 13px; height: 13px; }
 .frame__meta {
   display: grid; grid-template-columns: 1fr auto; gap: 2px var(--s-2);
-  padding: 6px 0 0; border-top: 1px solid var(--line); margin-top: 6px;
-  font-size: 13px;
+  padding-top: 6px; font-size: 12px;
 }
 .frame__time { font-weight: 700; }
 .frame__conf { text-align: right; }
-.frame__status { color: var(--muted); }
+.frame__status { grid-column: 1 / -1; color: var(--muted); }
 .frame__status--pedestrian { color: var(--text); }
-.frame__device { text-align: right; color: var(--muted); overflow-wrap: anywhere; }
 .conf-bar { grid-column: 1 / -1; height: 3px; background: var(--line); }
 .conf-bar span { display: block; height: 100%; background: var(--muted); }
 .frame--positive .conf-bar span { background: var(--text); }
@@ -219,13 +239,16 @@ tr.is-warning:hover { background-color: #451a18; }
   .layout { grid-template-columns: minmax(0, 1fr); padding: var(--s-4); }
   .status-column { position: static; max-height: none; overflow: visible; }
   .band { padding: var(--s-3) var(--s-4); }
-  .frames { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .band__controls { width: 100%; justify-content: space-between; }
+  .link-state { min-width: 0; text-align: left; }
+  .strip__frames { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
 }
 @media (max-width: 560px) {
   .timetable .hide-sm { display: none; }
   .device-select, .device-id { font-size: 13px; overflow-wrap: normal; white-space: nowrap; }
   .timetable td, .timetable th { padding-left: 6px; padding-right: 6px; }
   .settings { gap: var(--s-1) var(--s-4); }
+  .band__time { font-size: 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .dial__hand, .button, .timetable tbody tr { transition: none; }

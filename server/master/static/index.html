@@ -21,10 +21,8 @@
           <circle cx="50" cy="24" r="6.5"></circle>
         </g>
       </svg>
-      <div>
-        <h1>Pedestrian warnings</h1>
-        <p class="band__time"><time id="now">--:--:--</time></p>
-      </div>
+      <p class="band__time"><time id="now">--:--:--</time></p>
+      <h1>Pedestrian warnings</h1>
     </div>
     <dl class="settings" id="settings" aria-label="Alert settings">
       <div><dt>Threshold</dt><dd id="set-threshold">–</dd></div>
@@ -92,7 +90,7 @@
         <p class="pane__meta" id="frames-scope">All devices</p>
         <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
       </div>
-      <ol class="frames" id="frames"></ol>
+      <div class="strips" id="strips"></div>
       <p class="empty" id="frames-empty" hidden>No frames yet.</p>
     </section>
 

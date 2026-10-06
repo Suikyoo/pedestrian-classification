@@ -26,7 +26,7 @@ pedestrian-master = "master.app:main"
 include = ["master*"]
 
 [tool.setuptools.package-data]
-master = ["static/*"]
+master = ["static/*", "static/fonts/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

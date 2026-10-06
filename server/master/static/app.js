@@ -4,7 +4,7 @@
 const POLL_MS = 2000;
 const WARNINGS_MS = 5000;
 const STALE_S = 10;
-const MAX_FRAMES = 200;
+const FRAMES_PER_DEVICE = 48; // the strip shows one row of these; the selected device shows all
 const SVG_NS = "http://www.w3.org/2000/svg";
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -13,11 +13,10 @@ const state = {
   cfgLoaded: false,
   selected: "",
   lastId: 0,
-  generation: 0,
-  seen: new Set(),
   paused: false,
   online: true,
-  rows: new Map(), // mac -> row parts
+  rows: new Map(), // mac -> device row parts
+  strips: new Map(), // mac -> frame strip parts
 };
 
 const $ = (sel) => document.querySelector(sel);
@@ -74,13 +73,15 @@ function renderLinkState() {
 
 /* ---------- station clock (signature: stops at 12 while the server is unreachable) ---------- */
 
-function buildTicks(group, count, major, inner, outer, cls) {
+function buildTicks(group, count, every, inner, outer, cls, firstCls) {
   for (let i = 0; i < count; i++) {
     const a = (i / count) * 2 * Math.PI;
-    const isMajor = major && i % major === 0;
+    const isMajor = every && i % every === 0;
     const r1 = isMajor ? inner - 6 : inner;
+    let className = isMajor ? `${cls} major` : cls;
+    if (i === 0 && firstCls) className += ` ${firstCls}`;
     group.append(svg("line", {
-      class: isMajor ? `${cls} major` : cls,
+      class: className,
       x1: 50 + r1 * Math.sin(a), y1: 50 - r1 * Math.cos(a),
       x2: 50 + outer * Math.sin(a), y2: 50 - outer * Math.cos(a),
     }));
@@ -138,39 +139,52 @@ function buildDial() {
   const hand = svg("g", { class: "dial__hand" });
   hand.append(svg("line", { x1: 50, y1: 58, x2: 50, y2: 18 }), svg("circle", { cx: 50, cy: 18, r: 8 }));
   dial.append(hand);
-  return { dial, ticks, hand, tickCount: -1 };
+  return { dial, ticks, hand, tickCount: -1, fraction: 0 };
 }
 
 function updateDial(parts, kind, dwell) {
   const count = Math.max(1, Math.min(12, Math.round(state.cfg.dwell_s)));
   if (parts.tickCount !== count) {
     parts.ticks.replaceChildren();
-    buildTicks(parts.ticks, count, 0, 36, 44, "dial__tick");
+    // Tick 0 (at 12 o'clock) marks the dwell limit, where a warning fires.
+    buildTicks(parts.ticks, count, 0, 36, 44, "dial__tick", "limit");
     parts.tickCount = count;
   }
   parts.dial.dataset.kind = kind;
   const fraction = kind === "pedestrian" ? Math.min(dwell / state.cfg.dwell_s, 1) : kind === "warning" ? 1 : 0;
+  // A station hand never runs backwards: sweep forward, snap back to 12 on reset.
+  const snapping = fraction < parts.fraction;
+  parts.hand.classList.toggle("is-snapping", snapping);
   parts.hand.style.transform = `rotate(${fraction * 360}deg)`;
+  if (snapping) {
+    parts.hand.getBoundingClientRect(); // commit the snapped position before restoring the transition
+    requestAnimationFrame(() => parts.hand.classList.remove("is-snapping"));
+  }
+  parts.fraction = fraction;
 }
 
 function selectDevice(mac) {
   state.selected = state.selected === mac ? "" : mac;
-  for (const [m, parts] of state.rows) parts.tr.setAttribute("aria-selected", String(m === state.selected));
+  for (const [m, parts] of state.rows) {
+    const on = m === state.selected;
+    parts.tr.classList.toggle("is-selected", on);
+    parts.button.setAttribute("aria-pressed", String(on));
+  }
   $("#frames-scope").textContent = state.selected ? `Device ${state.selected}` : "All devices";
   $("#show-all").hidden = !state.selected;
-  resetFrames();
+  renderStripVisibility();
 }
 
 function buildRow(mac) {
   const tr = el("tr");
-  tr.setAttribute("aria-selected", "false");
   const dialParts = buildDial();
   const tdDial = el("td");
   tdDial.append(dialParts.dial);
   const tdDevice = el("td");
   const button = el("button", "device-select", mac);
   button.type = "button";
-  button.setAttribute("aria-label", `Show frames from device ${mac}`);
+  button.setAttribute("aria-pressed", "false");
+  button.setAttribute("aria-label", `Show only frames from device ${mac}`);
   button.addEventListener("click", (e) => { e.stopPropagation(); selectDevice(mac); });
   tdDevice.append(button);
   const tdStatus = el("td");
@@ -179,15 +193,17 @@ function buildRow(mac) {
   const tdWarn = el("td", "num hide-sm");
   tr.append(tdDial, tdDevice, tdStatus, tdConf, tdLast, tdWarn);
   tr.addEventListener("click", () => selectDevice(mac));
-  return { tr, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
+  return { tr, button, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
 }
 
-function renderStatus(td, st) {
+function statusNode(st) {
   const span = el("span", `status status--${st.kind}`);
-  if (st.kind === "warning") span.append(warnIcon());
-  span.append(document.createTextNode(st.label));
-  td.replaceChildren(span);
-  if (st.detail) td.append(document.createTextNode(" "), el("span", "status__detail", st.detail));
+  const word = el("span", "status__word");
+  if (st.kind === "warning") word.append(warnIcon());
+  word.append(document.createTextNode(st.label));
+  span.append(word);
+  if (st.detail) span.append(el("span", "status__detail", st.detail));
+  return span;
 }
 
 function renderDevices(devices) {
@@ -202,12 +218,14 @@ function renderDevices(devices) {
     let parts = state.rows.get(d.mac);
     if (!parts) {
       parts = buildRow(d.mac);
-      parts.tr.setAttribute("aria-selected", String(d.mac === state.selected));
       state.rows.set(d.mac, parts);
+      const on = d.mac === state.selected;
+      parts.tr.classList.toggle("is-selected", on);
+      parts.button.setAttribute("aria-pressed", String(on));
     }
     updateDial(parts, st.kind, d.last_dwell_s);
     parts.tr.classList.toggle("is-warning", st.kind === "warning");
-    renderStatus(parts.tdStatus, st);
+    parts.tdStatus.replaceChildren(statusNode(st));
     parts.tdConf.textContent = conf(d.last_conf);
     parts.tdLast.textContent = clock(d.last_ts);
     parts.tdWarn.textContent = d.last_warning_ts ? clock(d.last_warning_ts) : "–";
@@ -220,30 +238,28 @@ function renderDevices(devices) {
   $("#devices-empty").hidden = devices.length > 0;
   const counts = { warning: 0, pedestrian: 0 };
   for (const { st } of decorated) if (st.kind in counts) counts[st.kind] += 1;
-  const parts = [`${devices.length} ${devices.length === 1 ? "device" : "devices"}`];
-  if (counts.pedestrian) parts.push(`${counts.pedestrian} with pedestrian`);
-  if (counts.warning) parts.push(`${counts.warning} warning`);
-  $("#devices-meta").textContent = parts.join(" · ");
+  const meta = [`${devices.length} ${devices.length === 1 ? "device" : "devices"}`];
+  if (counts.pedestrian) meta.push(`${counts.pedestrian} with pedestrian`);
+  if (counts.warning) meta.push(`${counts.warning} warning`);
+  $("#devices-meta").textContent = meta.join(" · ");
+  return decorated;
 }
 
-/* ---------- frames ---------- */
+/* ---------- frames: one strip per device, newest on the left ---------- */
 
-function frameItem(r) {
+function frameItem(r, img) {
   const li = el("li", "frame");
+  li.dataset.id = String(r.id);
   if (r.alerted) li.classList.add("frame--warning");
   if (r.positive) li.classList.add("frame--positive");
 
   const button = el("button", "frame__image");
   button.type = "button";
   button.setAttribute("aria-label", `Enlarge frame from ${r.mac} at ${clock(r.ts)}`);
-  const img = el("img");
-  img.src = r.thumb_url;
-  img.alt = "";
-  img.loading = "lazy";
   button.append(img);
   if (r.alerted) {
     const stamp = el("span", "frame__stamp");
-    stamp.append(warnIcon(), document.createTextNode("Warning fired"));
+    stamp.append(warnIcon(), document.createTextNode("Warning"));
     button.append(stamp);
   }
   const caption = `${r.mac} · ${clock(r.ts)} · confidence ${conf(r.conf)}`;
@@ -259,36 +275,95 @@ function frameItem(r) {
   meta.append(bar);
   const statusText = r.positive ? `Pedestrian · ${secs(r.dwell_s)}` : "Clear";
   meta.append(el("span", `frame__status${r.positive ? " frame__status--pedestrian" : ""}`, statusText));
-  meta.append(el("span", "frame__device", r.mac));
   li.append(meta);
   return li;
 }
 
-function resetFrames() {
-  state.generation += 1;
-  state.lastId = 0;
-  state.seen.clear();
-  $("#frames").replaceChildren();
-  pollFrames().catch(() => setOnline(false));
+function buildStrip(mac) {
+  const section = el("section", "strip");
+  section.setAttribute("aria-label", `Frames from device ${mac}`);
+  const head = el("div", "strip__head");
+  const state_ = el("span", "strip__state");
+  head.append(el("span", "", mac), state_);
+  const list = el("ol", "strip__frames");
+  section.append(head, list);
+  return { section, head, stateEl: state_, list, ids: new Set(), loaded: false };
 }
 
-async function pollFrames() {
-  const generation = state.generation;
-  const params = new URLSearchParams({ limit: "100", after_id: String(state.lastId) });
-  if (state.selected) params.set("mac", state.selected);
-  const rows = await getJSON(`/api/inferences?${params}`);
-  if (generation !== state.generation) return; // filter changed while in flight
-  const list = $("#frames");
-  for (const r of rows.slice().reverse()) {
-    if (state.seen.has(r.id)) continue;
-    state.seen.add(r.id);
-    list.prepend(frameItem(r));
-    state.lastId = Math.max(state.lastId, r.id);
+async function addFrames(strip, rows) {
+  // Decode every thumbnail before it enters the strip so no tile shows blank.
+  const fresh = rows.filter((r) => !strip.ids.has(r.id));
+  const ready = await Promise.all(fresh.map(async (r) => {
+    const img = el("img");
+    img.alt = "";
+    img.src = r.thumb_url;
+    try { await img.decode(); } catch { /* broken image: keep the empty tile */ }
+    return frameItem(r, img);
+  }));
+  for (const li of ready) {
+    const id = Number(li.dataset.id);
+    if (strip.ids.has(id)) continue;
+    strip.ids.add(id);
+    let before = null;
+    for (const child of strip.list.children) {
+      if (Number(child.dataset.id) < id) { before = child; break; }
+    }
+    strip.list.insertBefore(li, before);
   }
-  while (list.children.length > MAX_FRAMES) list.lastElementChild.remove();
-  const empty = $("#frames-empty");
-  empty.hidden = list.children.length > 0;
-  empty.textContent = state.selected ? `No frames from device ${state.selected} yet.` : "No frames yet.";
+  while (strip.list.children.length > FRAMES_PER_DEVICE) {
+    const last = strip.list.lastElementChild;
+    strip.ids.delete(Number(last.dataset.id));
+    last.remove();
+  }
+}
+
+function renderStripVisibility() {
+  for (const [mac, strip] of state.strips) {
+    strip.section.hidden = Boolean(state.selected) && mac !== state.selected;
+    strip.section.classList.toggle("strip--expanded", mac === state.selected);
+  }
+}
+
+async function renderStrips(decorated) {
+  const container = $("#strips");
+  const present = new Set();
+  const backfills = [];
+  for (const { d, st } of decorated) {
+    present.add(d.mac);
+    let strip = state.strips.get(d.mac);
+    if (!strip) {
+      strip = buildStrip(d.mac);
+      state.strips.set(d.mac, strip);
+    }
+    strip.stateEl.textContent = st.detail ? `${st.label} · ${st.detail}` : st.label;
+    strip.head.classList.toggle("is-warning", st.kind === "warning");
+    container.append(strip.section); // same order as the devices timetable
+    if (!strip.loaded) {
+      strip.loaded = true;
+      const params = new URLSearchParams({ mac: d.mac, limit: String(FRAMES_PER_DEVICE) });
+      backfills.push(getJSON(`/api/inferences?${params}`).then((rows) => addFrames(strip, rows)));
+    }
+  }
+  for (const [mac, strip] of state.strips) {
+    if (!present.has(mac)) { strip.section.remove(); state.strips.delete(mac); }
+  }
+  renderStripVisibility();
+  await Promise.all(backfills);
+  $("#frames-empty").hidden = state.strips.size > 0;
+}
+
+async function pollNewFrames() {
+  const params = new URLSearchParams({ limit: "100", after_id: String(state.lastId) });
+  const rows = await getJSON(`/api/inferences?${params}`);
+  const byMac = new Map();
+  for (const r of rows) {
+    state.lastId = Math.max(state.lastId, r.id);
+    const strip = state.strips.get(r.mac);
+    if (!strip) continue; // its backfill will load it
+    if (!byMac.has(r.mac)) byMac.set(r.mac, []);
+    byMac.get(r.mac).push(r);
+  }
+  await Promise.all([...byMac].map(([mac, list]) => addFrames(state.strips.get(mac), list)));
 }
 
 /* ---------- warnings ---------- */
@@ -346,8 +421,9 @@ function every(ms, fn) {
 
 async function pollStatus() {
   if (!state.cfgLoaded) await loadConfig();
-  renderDevices(await getJSON("/api/devices"));
-  await pollFrames();
+  const decorated = renderDevices(await getJSON("/api/devices"));
+  await renderStrips(decorated);
+  await pollNewFrames();
 }
 
 function init() {
