@@ -15,25 +15,153 @@ sh test/host/run.sh                       # components/core unit tests
 python -m pytest tools/test_wav2raw.py    # clip converter
 ```
 
-## Build and flash (ESP-IDF >= 5.1)
+## Compile and flash the firmware
+
+The firmware has never been compiled on the development PC (no ESP-IDF there).
+The first `idf.py build` on your ESP-IDF machine is its first real compile; use
+the bring-up checklist below to verify it.
+
+### 1. Install ESP-IDF (once per machine)
+
+Supported: **ESP-IDF v5.1 to v5.4** (v5.3 or v5.4 recommended). ESP-IDF 6.x is not
+supported yet (see Troubleshooting).
+
+- **Windows:** install with the ESP-IDF Windows Installer (Espressif's "ESP-IDF
+  Tools Installer"), choosing v5.3 or v5.4. It adds an **"ESP-IDF PowerShell"** (and
+  "ESP-IDF CMD") shortcut; run every `idf.py` command below from that shortcut.
+- **Linux / macOS:**
+  ```sh
+  mkdir -p ~/esp && cd ~/esp
+  git clone -b v5.4 --recursive https://github.com/espressif/esp-idf.git
+  cd esp-idf && ./install.sh esp32s3
+  . ./export.sh            # run this in every new terminal
+  ```
+
+Check: `idf.py --version` prints `ESP-IDF v5.x`.
+
+### 2. Get the code
 
 ```sh
-cd firmware
-idf.py set-target esp32s3
-idf.py menuconfig      # Pedestrian Edge: Wi-Fi SSID/password, MQTT URI
-idf.py build flash monitor
+git clone git@github.com:Suikyoo/pedestrian-classification.git
+cd pedestrian-classification/firmware
 ```
 
-MQTT URI choices:
+All commands below run inside `firmware/`.
+
+### 3. Select the chip
+
+```sh
+idf.py set-target esp32s3
+```
+
+This creates `sdkconfig` from `sdkconfig.defaults` (PSRAM, flash size, partition
+table, TLS bundle, watchdog). `sdkconfig` is machine-local and git-ignored.
+Running `set-target` again deletes `sdkconfig` and starts from the defaults.
+
+Flash size: the defaults assume a Freenove **N8R8** module (8 MB flash, 8 MB
+PSRAM; the module marking is printed on its metal shield). For **N16R8**, change
+`CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` to `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` in
+`sdkconfig.defaults` before `set-target`, or set it in menuconfig under
+*Serial flasher config → Flash size*.
+
+### 4. Configure Wi-Fi and the broker
+
+```sh
+idf.py menuconfig
+```
+
+Open **Pedestrian Edge** and set:
+
+| Option | Value |
+|---|---|
+| Board | Freenove ESP32-S3-WROOM CAM (only choice for now) |
+| Network backend | Wi-Fi (only choice for now) |
+| Wi-Fi SSID / Wi-Fi password | your network (empty password = open network; 2.4 GHz only) |
+| MQTT broker URI | see "MQTT URI choices" below |
+| MQTT username / MQTT password | leave empty unless broker auth is enabled |
+| Firmware version | reported in `{id}/status`; change when you release |
+
+Save with `S`, quit with `Q`. Settings live in `sdkconfig`.
+
+To keep credentials out of interactive menus, put them in a git-ignored file
+instead, for example `sdkconfig.local`:
+
+```
+CONFIG_WIFI_SSID="my-network"
+CONFIG_WIFI_PASSWORD="my-password"
+CONFIG_MQTT_URI="ws://192.168.1.20:9001/mqtt"
+```
+
+and build with both default files (delete `sdkconfig` first so they apply):
+
+```sh
+idf.py -D SDKCONFIG_DEFAULTS="sdkconfig.defaults;sdkconfig.local" set-target esp32s3
+```
+
+### 5. Build
+
+```sh
+idf.py build
+```
+
+The first build needs internet access once: the component manager downloads
+`espressif/esp32-camera` (declared in `main/idf_component.yml`) into
+`managed_components/`. A successful build ends with
+`Project build complete` and the image `build/pedestrian_edge.bin`. The build
+prints the image size and the free space left in the 4 MB factory partition.
+
+### 6. Flash and watch the log
+
+Connect the board by USB, then find its serial port:
+
+- Windows: Device Manager → *Ports (COM & LPT)*, e.g. `COM5`
+- Linux: `ls /dev/ttyACM* /dev/ttyUSB*`; macOS: `ls /dev/cu.usb*`
+
+```sh
+idf.py -p COM5 flash monitor
+```
+
+Exit the monitor with `Ctrl+]`. If flashing cannot connect, hold **BOOT**, tap
+**RST**, release **BOOT**, and run the command again.
+
+The log should show, in order: `config_store`, `audio: ready: 19200-byte clip on
+GPIO 14`, `net_wifi: got ip ...`, `mqtt_link: connected`, and
+`main: running as <id>`. `<id>` is the device ID used by the server, the CLI and
+the dashboard.
+
+### Rebuilding after changes
+
+| Change | Command |
+|---|---|
+| C code, Kconfig values, alert clip | `idf.py build flash` (or `idf.py -p COM5 flash monitor`) |
+| `sdkconfig.defaults` | delete `sdkconfig` (or `idf.py set-target esp32s3`), then build |
+| Something behaves stale | `idf.py fullclean`, then build |
+
+### MQTT URI choices
+
 - Through Cloudflare Tunnel: `wss://mqtt.<domain>:443/mqtt`
 - Bench, straight to the PC's Mosquitto websockets listener: `ws://<pc-ip>:9001/mqtt`
 - Bench, plain MQTT: `mqtt://<pc-ip>:1883`
 
 For the two bench URIs, the PC's Mosquitto listener must bind to the LAN address
-(the shipped `server/deploy/mosquitto.conf` binds to 127.0.0.1 only).
+(the shipped `server/deploy/mosquitto.conf` binds to 127.0.0.1 only), and the
+Windows firewall must allow the port.
 
-Flash size: `sdkconfig.defaults` assumes an N8R8 module (8 MB flash). For N16R8,
-set `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y`.
+### Troubleshooting the first build
+
+These are the spots the code review could not confirm without a compiler:
+
+| Symptom | Fix |
+|---|---|
+| `Failed to resolve component 'json'` | You are on ESP-IDF 6.x, where cJSON moved out of IDF. Use v5.x, or replace `json` with the managed component `espressif/cjson` in `components/core/CMakeLists.txt` and add it to a `components/core/idf_component.yml`. |
+| `esp_camera.h: No such file` | The component manager did not run or had no internet. Run `idf.py reconfigure` with internet access. |
+| Boot aborts in `audio_init` at `ledc_timer_config` (clock conflict) | The camera's XCLK timer and the audio PWM timer chose different LEDC clock sources. In `main/audio.c`, set `.clk_cfg` to the same source the camera uses (try `LEDC_USE_APB_CLK`). |
+| `PSRAM ID read error` / boot loop at start | The module has no octal PSRAM or a different size. Check the module marking (N8R8 / N16R8) and the PSRAM mode in menuconfig (*Component config → ESP PSRAM*). |
+| `Detected size(8192k) smaller than the size in the binary image header(16384k)` (or the reverse) | Flash size in `sdkconfig.defaults` does not match the module; see step 3. |
+| `Camera init failed` | Reseat the camera ribbon (contacts facing the board) and power-cycle. The firmware retries and reboots after 5 failed captures. |
+| Wi-Fi never connects | SSID is empty or wrong (the log says `WIFI_SSID is empty`), or the network is 5 GHz only. |
+| `MQTT_URI is still the example value` | Set the broker URI in menuconfig (step 4). |
+| Watchdog reboots during large frame uploads | Lower `frame_size` or raise `jpeg_quality` with `python -m master.cli config <id> ...`. |
 
 ## Alert sound
 

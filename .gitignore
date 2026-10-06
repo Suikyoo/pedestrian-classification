@@ -28,3 +28,4 @@ firmware/test/host/build/
 .impeccable/questions/
 .impeccable/decision-*.json
 .impeccable/brief-*.md
+firmware/sdkconfig.local
