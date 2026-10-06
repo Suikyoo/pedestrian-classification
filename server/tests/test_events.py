@@ -106,3 +106,16 @@ def test_wal_mode_enabled(tmp_path):
     con = sqlite3.connect(tmp_path / "events.db")
     assert con.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
     con.close()
+
+
+@pytest.mark.parametrize("mac", ["../../evil", "<img src=x onerror=alert(1)>", "a/b", ""])
+def test_unsafe_device_ids_stay_inside_root(tmp_path, mac):
+    root = tmp_path / "events"
+    store = EventStore(root)
+    thumb = store.record_inference(mac, 1.0, 0.5, False, 0.0, False, _jpeg(64, 48))
+    snap = store.record(mac, Alert(first_seen=0.0, ts=1.0, max_conf=0.5), b"\xff\xd8x")
+    for p in (thumb, snap):
+        assert p.resolve().is_relative_to(root.resolve())
+        assert p.exists()
+    assert store.inferences(mac)[0]["mac"] == mac
+    store.close()

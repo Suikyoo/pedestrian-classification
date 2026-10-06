@@ -1,6 +1,7 @@
 """Event store: alerts (row + full snapshot) and recent inferences (row + thumbnail)."""
 
 import io
+import re
 import sqlite3
 import threading
 from pathlib import Path
@@ -10,6 +11,12 @@ from PIL import Image
 from master.logic import Alert
 
 THUMB_WIDTH = 320
+_UNSAFE_CHARS = re.compile(r"[^0-9A-Za-z_-]")
+
+
+def _dir_name(mac: str) -> str:
+    """Folder name for a device. Device IDs come from MQTT topics and are untrusted."""
+    return _UNSAFE_CHARS.sub("_", mac)[:64] or "_"
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS events (
@@ -47,7 +54,7 @@ class EventStore:
         self._db.commit()
 
     def record(self, mac: str, alert: Alert, jpeg: bytes) -> Path:
-        rel = Path(mac) / f"{round(alert.ts * 1000)}.jpg"
+        rel = Path(_dir_name(mac)) / f"{round(alert.ts * 1000)}.jpg"
         path = self.root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(jpeg)
@@ -63,7 +70,7 @@ class EventStore:
     def record_inference(self, mac: str, ts: float, conf: float, positive: bool,
                          dwell_s: float, alerted: bool, jpeg: bytes) -> Path:
         """Save a thumbnail and a row, then prune this device to the newest `history` rows."""
-        rel = Path("thumbs") / mac / f"{round(ts * 1000)}.jpg"
+        rel = Path("thumbs") / _dir_name(mac) / f"{round(ts * 1000)}.jpg"
         path = self.root / rel
         img = Image.open(io.BytesIO(jpeg)).convert("RGB")
         if img.width > THUMB_WIDTH:
