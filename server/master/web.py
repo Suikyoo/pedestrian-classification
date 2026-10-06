@@ -106,7 +106,8 @@ def create_app(settings: Settings) -> FastAPI:
     @app.get("/media/{path:path}")
     def media(path: str) -> FileResponse:
         target = (root / path).resolve()
-        if not target.is_relative_to(root) or not target.is_file():
+        # Only the JPEG thumbnails and snapshots are served, never the database.
+        if not target.is_relative_to(root) or target.suffix.lower() != ".jpg" or not target.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(target)
 

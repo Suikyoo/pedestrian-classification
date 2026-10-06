@@ -157,3 +157,10 @@ def test_page_has_no_external_resources(client):
     js = client.get("/static/app.js").text
     assert "http://" not in html and "https://" not in html
     assert "innerHTML" not in js
+
+
+def test_media_serves_only_jpeg(client, root):
+    _fill(root).close()
+    assert client.get("/media/events.db").status_code == 404
+    (root / "notes.txt").write_text("x")
+    assert client.get("/media/notes.txt").status_code == 404

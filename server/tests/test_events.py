@@ -1,3 +1,4 @@
+from pathlib import Path
 from master.events import EventStore
 from master.logic import Alert
 
@@ -118,4 +119,30 @@ def test_unsafe_device_ids_stay_inside_root(tmp_path, mac):
         assert p.resolve().is_relative_to(root.resolve())
         assert p.exists()
     assert store.inferences(mac)[0]["mac"] == mac
+    store.close()
+
+
+def test_old_snapshot_paths_migrated_to_root_relative(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    root = tmp_path / "events"
+    EventStore(root).close()
+    (root / MAC).mkdir()
+    for name in ("1.jpg", "2.jpg", "3.jpg"):
+        (root / MAC / name).write_bytes(b"x")
+    con = sqlite3.connect(root / "events.db")
+    old_rows = [
+        str(Path("events") / MAC / "1.jpg"),  # old default EVENTS_DIR=./events: cwd-relative
+        str(root / MAC / "2.jpg"),            # old absolute EVENTS_DIR
+        f"{MAC}/3.jpg",                       # already root-relative
+    ]
+    for snap in old_rows:
+        con.execute(
+            "INSERT INTO events (mac, alert_ts, first_seen_ts, dwell_s, max_conf, snapshot)"
+            " VALUES (?, 1.0, 0.0, 1.0, 0.5, ?)", (MAC, snap))
+    con.commit()
+    con.close()
+
+    store = EventStore(root)
+    snaps = sorted(r["snapshot"] for r in store.recent())
+    assert snaps == [f"{MAC}/1.jpg", f"{MAC}/2.jpg", f"{MAC}/3.jpg"]
     store.close()

@@ -51,7 +51,22 @@ class EventStore:
         self._db = sqlite3.connect(self.root / "events.db", check_same_thread=False)
         self._db.execute("PRAGMA journal_mode=WAL")  # lets master.web read while we write
         self._db.executescript(_SCHEMA)
+        self._migrate_snapshot_paths()
         self._db.commit()
+
+    def _migrate_snapshot_paths(self) -> None:
+        """Rewrite snapshot paths stored by older versions (cwd-relative or absolute,
+        e.g. "events\\<mac>\\<ms>.jpg") to the root-relative form "<mac>/<ms>.jpg"."""
+        root = self.root.resolve()
+        rows = self._db.execute("SELECT id, snapshot FROM events").fetchall()
+        for row_id, snap in rows:
+            if not Path(snap).is_absolute() and (root / snap).is_file():
+                continue  # already root-relative
+            try:
+                rel = Path(snap).resolve().relative_to(root).as_posix()
+            except ValueError:
+                continue  # outside root: leave it; the dashboard shows no image
+            self._db.execute("UPDATE events SET snapshot = ? WHERE id = ?", (rel, row_id))
 
     def record(self, mac: str, alert: Alert, jpeg: bytes) -> Path:
         rel = Path(_dir_name(mac)) / f"{round(alert.ts * 1000)}.jpg"
