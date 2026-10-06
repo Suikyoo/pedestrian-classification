@@ -3,30 +3,109 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pedestrian inference</title>
+  <meta name="color-scheme" content="dark">
+  <title>Pedestrian warnings</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header>
-    <h1>Pedestrian inference</h1>
-    <label>Device
-      <select id="device"><option value="">All devices</option></select>
-    </label>
-    <span id="config" class="muted"></span>
-    <button id="pause" type="button">Pause</button>
+  <header class="band">
+    <div class="band__id">
+      <svg class="clock" id="station-clock" viewBox="0 0 100 100" aria-hidden="true">
+        <circle class="clock__face" cx="50" cy="50" r="47"></circle>
+        <g class="clock__ticks" id="station-ticks"></g>
+        <line class="clock__hour" id="hand-hour" x1="50" y1="58" x2="50" y2="27"></line>
+        <line class="clock__minute" id="hand-minute" x1="50" y1="60" x2="50" y2="12"></line>
+        <g class="clock__second" id="hand-second">
+          <line x1="50" y1="66" x2="50" y2="24"></line>
+          <circle cx="50" cy="24" r="6.5"></circle>
+        </g>
+      </svg>
+      <div>
+        <h1>Pedestrian warnings</h1>
+        <p class="band__time"><time id="now">--:--:--</time></p>
+      </div>
+    </div>
+    <dl class="settings" id="settings" aria-label="Alert settings">
+      <div><dt>Threshold</dt><dd id="set-threshold">–</dd></div>
+      <div><dt>Dwell</dt><dd id="set-dwell">–</dd></div>
+      <div><dt>Gap</dt><dd id="set-gap">–</dd></div>
+      <div><dt>Cooldown</dt><dd id="set-cooldown">–</dd></div>
+    </dl>
+    <div class="band__controls">
+      <p class="link-state" id="link-state" role="status">Connecting</p>
+      <button class="button" id="pause" type="button" aria-pressed="false">Pause</button>
+    </div>
   </header>
-  <div id="banner" class="banner" hidden>Cannot reach server — retrying</div>
-  <main>
-    <section aria-label="Recent inferences">
-      <p id="empty" class="muted">No inferences yet. Start master.app and a device.</p>
-      <div id="grid" class="grid"></div>
+
+  <div class="banner" id="banner" role="alert" hidden>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 10v5M12 18v.01"></path></svg>
+    <span>Server unreachable. Retrying every 2 seconds; the clock stops until data returns.</span>
+  </div>
+
+  <main class="layout">
+    <div class="status-column">
+    <section class="pane pane--devices" aria-labelledby="devices-h">
+      <div class="pane__head">
+        <h2 id="devices-h">Devices</h2>
+        <p class="pane__meta" id="devices-meta"></p>
+      </div>
+      <table class="timetable timetable--devices">
+        <thead>
+          <tr>
+            <th scope="col" class="col-dial"><span class="visually-hidden">Dwell dial</span></th>
+            <th scope="col">Device</th>
+            <th scope="col">Status</th>
+            <th scope="col" class="num">Conf.</th>
+            <th scope="col" class="num hide-sm">Last frame</th>
+            <th scope="col" class="num hide-sm">Last warning</th>
+          </tr>
+        </thead>
+        <tbody id="devices"></tbody>
+      </table>
+      <p class="empty" id="devices-empty">No devices yet. A device appears here within 2 seconds of its first frame reaching master.app.</p>
     </section>
-    <aside aria-label="Recent alerts">
-      <h2>Recent alerts</h2>
-      <ol id="alerts" class="alerts"></ol>
-    </aside>
+
+    <section class="pane pane--warnings" aria-labelledby="warnings-h">
+      <div class="pane__head">
+        <h2 id="warnings-h">Warnings</h2>
+      </div>
+      <table class="timetable timetable--warnings">
+        <thead>
+          <tr>
+            <th scope="col">Time</th>
+            <th scope="col">Device</th>
+            <th scope="col" class="num">Dwell</th>
+            <th scope="col" class="num hide-sm">Max conf.</th>
+            <th scope="col"><span class="visually-hidden">Snapshot</span></th>
+          </tr>
+        </thead>
+        <tbody id="warnings"></tbody>
+      </table>
+      <p class="empty" id="warnings-empty">No warnings yet. A warning fires when a pedestrian stays in view for the dwell time.</p>
+    </section>
+    </div>
+
+    <section class="pane pane--frames" aria-labelledby="frames-h">
+      <div class="pane__head">
+        <h2 id="frames-h">Frames</h2>
+        <p class="pane__meta" id="frames-scope">All devices</p>
+        <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
+      </div>
+      <ol class="frames" id="frames"></ol>
+      <p class="empty" id="frames-empty" hidden>No frames yet.</p>
+    </section>
+
   </main>
-  <dialog id="viewer"><img alt="Enlarged frame"></dialog>
+
+  <dialog class="viewer" id="viewer">
+    <div class="viewer__media" id="viewer-media"></div>
+    <div class="viewer__bar">
+      <p id="viewer-caption"></p>
+      <form method="dialog"><button class="button" type="submit">Close</button></form>
+    </div>
+  </dialog>
+
   <script src="/static/app.js"></script>
 </body>
 </html>
