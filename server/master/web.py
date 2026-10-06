@@ -69,12 +69,22 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/api/devices")
     def devices() -> list[dict]:
-        return query(
-            "SELECT i.mac AS mac, i.ts AS last_ts, i.conf AS last_conf, c.count AS count"
+        rows = query(
+            "SELECT i.mac AS mac, i.ts AS last_ts, i.conf AS last_conf, c.count AS count,"
+            " i.positive AS last_positive, i.dwell_s AS last_dwell_s, i.alerted AS last_alerted"
             " FROM inferences i"
             " JOIN (SELECT mac, MAX(id) AS max_id, COUNT(*) AS count FROM inferences GROUP BY mac) c"
             " ON i.id = c.max_id ORDER BY i.ts DESC"
         )
+        warnings = {
+            r["mac"]: r["last_warning_ts"]
+            for r in query("SELECT mac, MAX(alert_ts) AS last_warning_ts FROM events GROUP BY mac")
+        }
+        for r in rows:
+            r["last_positive"] = bool(r["last_positive"])
+            r["last_alerted"] = bool(r["last_alerted"])
+            r["last_warning_ts"] = warnings.get(r["mac"])
+        return rows
 
     @app.get("/api/inferences")
     def inferences(mac: str | None = None, limit: int = 100, after_id: int = 0) -> list[dict]:

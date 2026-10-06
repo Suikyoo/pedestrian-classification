@@ -89,9 +89,23 @@ def test_limit_clamped_to_500(client, root):
 def test_devices(client, root):
     _fill(root).close()
     assert client.get("/api/devices").json() == [
-        {"mac": MAC, "last_ts": 102.0, "last_conf": 0.8, "count": 2},
-        {"mac": OTHER, "last_ts": 101.0, "last_conf": 0.1, "count": 1},
+        {"mac": MAC, "last_ts": 102.0, "last_conf": 0.8, "count": 2, "last_positive": True,
+         "last_dwell_s": 2.0, "last_alerted": True, "last_warning_ts": 102.0},
+        {"mac": OTHER, "last_ts": 101.0, "last_conf": 0.1, "count": 1, "last_positive": False,
+         "last_dwell_s": 0.0, "last_alerted": False, "last_warning_ts": None},
     ]
+
+
+def test_devices_without_events_table(client, root):
+    store = EventStore(root)
+    store.record_inference(MAC, 1.0, 0.5, False, 0.0, False, _jpeg())
+    store.close()
+    con = sqlite3.connect(root / "events.db")
+    con.execute("DROP TABLE events")
+    con.commit()
+    con.close()
+    [row] = client.get("/api/devices").json()
+    assert row["mac"] == MAC and row["last_warning_ts"] is None
 
 
 def test_alert_snapshot_urls_old_and_new(client, root):
