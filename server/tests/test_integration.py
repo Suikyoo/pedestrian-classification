@@ -32,6 +32,9 @@ class NoEvents:
     def record(self, mac, alert, jpeg):
         pass
 
+    def record_inference(self, mac, ts, conf, positive, dwell_s, alerted, jpeg):
+        pass
+
 
 @pytest.mark.skipif(not _broker_up(), reason="Mosquitto not running on 127.0.0.1:1883")
 def test_alert_arrives_after_dwell_and_not_before():

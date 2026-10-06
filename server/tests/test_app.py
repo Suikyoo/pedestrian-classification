@@ -21,14 +21,24 @@ class FakeDetector:
 
 
 class FakeEvents:
-    def __init__(self, error=None):
+    def __init__(self, error=None, inference_error=None):
         self.error = error
+        self.inference_error = inference_error
         self.recorded = []
+        self.inferences = []
 
     def record(self, mac, alert, jpeg):
         if self.error:
             raise self.error
         self.recorded.append((mac, alert, jpeg))
+
+    def record_inference(self, mac, ts, conf, positive, dwell_s, alerted, jpeg):
+        if self.inference_error:
+            raise self.inference_error
+        self.inferences.append(
+            {"mac": mac, "ts": ts, "conf": conf, "positive": positive,
+             "dwell_s": dwell_s, "alerted": alerted, "jpeg": jpeg}
+        )
 
 
 class Clock:
@@ -165,3 +175,37 @@ def test_on_message_never_raises(monkeypatch):
 
     monkeypatch.setattr(app, "_on_image", boom)
     app.on_message(f"{MAC}/image", protocol.pack_image(1, b"jpeg"))
+
+
+def test_every_frame_recorded_as_inference():
+    events = FakeEvents()
+    app, _ = make_app(events=events)
+    send_frames(app, MAC, range(0, 6))
+    rows = events.inferences
+    assert len(rows) == 6
+    assert [r["dwell_s"] for r in rows] == [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
+    assert [r["alerted"] for r in rows] == [False] * 5 + [True]
+    assert all(r["positive"] and r["conf"] == 0.9 and r["jpeg"] == b"jpeg" for r in rows)
+
+
+def test_negative_frames_recorded_as_negative():
+    events = FakeEvents()
+    app, _ = make_app(detector=FakeDetector(conf=0.1), events=events)
+    send_frames(app, MAC, range(0, 3))
+    assert [r["positive"] for r in events.inferences] == [False, False, False]
+    assert all(r["dwell_s"] == 0.0 and not r["alerted"] for r in events.inferences)
+
+
+def test_detector_failure_records_no_inference():
+    events = FakeEvents()
+    app, _ = make_app(detector=FakeDetector(error=RuntimeError("boom")), events=events)
+    send_frames(app, MAC, range(0, 3))
+    assert events.inferences == []
+
+
+def test_inference_record_failure_still_alerts():
+    events = FakeEvents(inference_error=OSError("disk full"))
+    app, published = make_app(events=events)
+    send_frames(app, MAC, range(0, 6))
+    assert len(published) == 1
+    assert len(events.recorded) == 1

@@ -102,14 +102,19 @@ class MasterApp:
             return
         with self._lock:
             alert = self.logic.update(mac, ts, conf)
-        if alert is None:
-            return
-        log.info("%s ALERT dwell=%.1fs max_conf=%.2f", mac, alert.dwell_s, alert.max_conf)
-        self.publish(protocol.topic(mac, "alert"), protocol.alert_payload(1), 1, False)
+            dwell = self.logic.current_dwell(mac)
+        if alert is not None:
+            log.info("%s ALERT dwell=%.1fs max_conf=%.2f", mac, alert.dwell_s, alert.max_conf)
+            self.publish(protocol.topic(mac, "alert"), protocol.alert_payload(1), 1, False)
+            try:
+                self.events.record(mac, alert, jpeg)
+            except Exception:
+                log.exception("%s: failed to record event", mac)
         try:
-            self.events.record(mac, alert, jpeg)
+            self.events.record_inference(mac, ts, conf, conf >= self.logic.threshold, dwell,
+                                         alert is not None, jpeg)
         except Exception:
-            log.exception("%s: failed to record event", mac)
+            log.exception("%s: failed to record inference", mac)
 
     def process_pending(self, timeout: float | None = 0.5) -> None:
         for mac, (ts, jpeg) in self.slots.take_all(timeout).items():
@@ -157,7 +162,7 @@ def main() -> None:
         detector=Detector(s.model_path, s.device),
         logic=DwellLogic(s.pedestrian_conf_threshold, s.alert_dwell_seconds,
                          s.max_gap_seconds, s.alert_cooldown_seconds),
-        events=EventStore(s.events_dir),
+        events=EventStore(s.events_dir, history=s.inference_history),
         publish=lambda t, p, q, r: None,  # replaced by connect()
     )
     client = connect(app, s.mqtt_host, s.mqtt_port, s.mqtt_user, s.mqtt_pass)
