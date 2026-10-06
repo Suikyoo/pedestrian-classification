@@ -20,7 +20,7 @@ def test_record_writes_row_and_snapshot(tmp_path):
             "first_seen_ts": 1_727_600_000.0,
             "dwell_s": 5.5,
             "max_conf": 0.91,
-            "snapshot": str(path),
+            "snapshot": f"{MAC}/1727600005500.jpg",
         }
     ]
     store.close()
@@ -42,3 +42,67 @@ def test_data_survives_reopen(tmp_path):
     store = EventStore(tmp_path)
     assert len(store.recent()) == 1
     store.close()
+import io
+import sqlite3
+
+import pytest
+from PIL import Image
+
+
+def _jpeg(w, h, color=(200, 100, 50)):
+    buf = io.BytesIO()
+    Image.new("RGB", (w, h), color).save(buf, format="JPEG")
+    return buf.getvalue()
+
+
+def test_record_inference_writes_thumbnail_and_row(tmp_path):
+    store = EventStore(tmp_path)
+    path = store.record_inference(MAC, 1_790_000_000.25, 0.91, True, 3.0, False, _jpeg(640, 480))
+
+    assert path == tmp_path / "thumbs" / MAC / "1790000000250.jpg"
+    with Image.open(path) as img:
+        assert img.size == (320, 240)
+    [row] = store.inferences(MAC)
+    assert row["mac"] == MAC
+    assert row["ts"] == 1_790_000_000.25
+    assert row["conf"] == 0.91
+    assert row["positive"] == 1
+    assert row["dwell_s"] == 3.0
+    assert row["alerted"] == 0
+    assert row["thumb"] == f"thumbs/{MAC}/1790000000250.jpg"
+    store.close()
+
+
+def test_small_frames_are_not_upscaled(tmp_path):
+    store = EventStore(tmp_path)
+    path = store.record_inference(MAC, 1.0, 0.1, False, 0.0, False, _jpeg(160, 120))
+    with Image.open(path) as img:
+        assert img.size == (160, 120)
+    store.close()
+
+
+def test_pruning_keeps_newest_per_device(tmp_path):
+    store = EventStore(tmp_path, history=3)
+    paths = [store.record_inference(MAC, float(t), 0.5, False, 0.0, False, _jpeg(64, 48)) for t in range(5)]
+    other = store.record_inference("bbbbbbbbbbbb", 1.0, 0.5, False, 0.0, False, _jpeg(64, 48))
+
+    assert [r["ts"] for r in store.inferences(MAC)] == [4.0, 3.0, 2.0]
+    assert not paths[0].exists() and not paths[1].exists()
+    assert all(p.exists() for p in paths[2:])
+    assert other.exists() and len(store.inferences("bbbbbbbbbbbb")) == 1
+    store.close()
+
+
+def test_record_inference_rejects_garbage(tmp_path):
+    store = EventStore(tmp_path)
+    with pytest.raises(Exception):
+        store.record_inference(MAC, 1.0, 0.5, False, 0.0, False, b"not a jpeg")
+    assert store.inferences(MAC) == []
+    store.close()
+
+
+def test_wal_mode_enabled(tmp_path):
+    EventStore(tmp_path).close()
+    con = sqlite3.connect(tmp_path / "events.db")
+    assert con.execute("PRAGMA journal_mode").fetchone()[0] == "wal"
+    con.close()
