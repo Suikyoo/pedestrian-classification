@@ -143,3 +143,17 @@ def test_index_served(client):
     r = client.get("/")
     assert r.status_code == 200
     assert "/static/app.js" in r.text
+
+
+def test_static_assets_served(client):
+    for name, kind in (("app.js", "javascript"), ("style.css", "text/css")):
+        r = client.get(f"/static/{name}")
+        assert r.status_code == 200
+        assert kind in r.headers["content-type"]
+
+
+def test_page_has_no_external_resources(client):
+    html = client.get("/").text
+    js = client.get("/static/app.js").text
+    assert "http://" not in html and "https://" not in html
+    assert "innerHTML" not in js

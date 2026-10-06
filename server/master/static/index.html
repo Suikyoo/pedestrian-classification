@@ -1,3 +1,32 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><title>Pedestrian inference</title></head>
-<body><script src="/static/app.js"></script></body></html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pedestrian inference</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header>
+    <h1>Pedestrian inference</h1>
+    <label>Device
+      <select id="device"><option value="">All devices</option></select>
+    </label>
+    <span id="config" class="muted"></span>
+    <button id="pause" type="button">Pause</button>
+  </header>
+  <div id="banner" class="banner" hidden>Cannot reach server — retrying</div>
+  <main>
+    <section aria-label="Recent inferences">
+      <p id="empty" class="muted">No inferences yet. Start master.app and a device.</p>
+      <div id="grid" class="grid"></div>
+    </section>
+    <aside aria-label="Recent alerts">
+      <h2>Recent alerts</h2>
+      <ol id="alerts" class="alerts"></ol>
+    </aside>
+  </main>
+  <dialog id="viewer"><img alt="Enlarged frame"></dialog>
+  <script src="/static/app.js"></script>
+</body>
+</html>

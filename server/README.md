@@ -27,6 +27,23 @@ project config:
 python -m master.app
 ```
 
+## Dashboard
+
+Shows recent inferences (thumbnail, confidence, pedestrian or not, dwell progress,
+alert) and recent alerts. Runs as its own read-only process next to `master.app`:
+
+```powershell
+python -m master.web
+```
+
+Open `http://<this-pc-ip>:8000` from any device on the LAN (`http://127.0.0.1:8000`
+on this PC). The page refreshes every 2 seconds. Settings in `.env`:
+`INFERENCE_HISTORY` (frames kept per device, default 200), `WEB_HOST`, `WEB_PORT`.
+
+There is no login: anyone on the LAN who can reach the port sees the camera
+thumbnails. Set `WEB_HOST=127.0.0.1` to allow only this PC. Windows Firewall may
+ask to allow Python on private networks the first time.
+
 ## Commands
 
 ```powershell
