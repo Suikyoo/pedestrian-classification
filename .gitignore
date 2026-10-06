@@ -22,3 +22,9 @@ firmware/managed_components/
 
 # Firmware host tests
 firmware/test/host/build/
+
+# Impeccable scratch
+.impeccable/review/
+.impeccable/questions/
+.impeccable/decision-*.json
+.impeccable/brief-*.md

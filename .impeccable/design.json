@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-06T00:00:00Z",
+  "title": "Design System: Pedestrian Warnings Dashboard",
+  "extensions": {
+    "colorMeta": {
+      "ground": { "role": "neutral", "displayName": "Night Ground", "canonical": "#121417", "tonalRamp": ["#0a0b0d", "#121417", "#1a1d21", "#22262b", "#2c3036", "#585d64", "#9aa0a7", "#ecece8"] },
+      "panel": { "role": "neutral", "displayName": "Panel", "canonical": "#1a1d21", "tonalRamp": ["#0e1012", "#121417", "#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#585d64", "#858b92"] },
+      "panel-raised": { "role": "neutral", "displayName": "Raised Panel", "canonical": "#22262b", "tonalRamp": ["#121417", "#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#585d64", "#858b92", "#9aa0a7"] },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#2c3036", "tonalRamp": ["#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#4a4f56", "#585d64", "#858b92", "#9aa0a7"] },
+      "text": { "role": "neutral", "displayName": "Text", "canonical": "#ecece8", "tonalRamp": ["#585d64", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd0cf", "#dcdcd8", "#ecece8", "#f6f6f3"] },
+      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "#9aa0a7", "tonalRamp": ["#3a3f46", "#585d64", "#757b82", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd2d5", "#e4e5e6"] },
+      "rest": { "role": "neutral", "displayName": "Rest", "canonical": "#858b92", "tonalRamp": ["#3a3f46", "#4a4f56", "#585d64", "#6e747b", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd2d5"] },
+      "board-blue": { "role": "primary", "displayName": "Departure-Board Blue", "canonical": "#1d2858", "tonalRamp": ["#0d1230", "#141c44", "#1d2858", "#2c3a78", "#36468c", "#5a68a8", "#8c95c4", "#c3c8de"] },
+      "board-line": { "role": "primary", "displayName": "Board Rule", "canonical": "#2c3a78", "tonalRamp": ["#141c44", "#1d2858", "#2c3a78", "#36468c", "#4a5a9c", "#6b78b0", "#8c95c4", "#b8bed6"] },
+      "board-text": { "role": "neutral", "displayName": "Board Paper", "canonical": "#f2f2ee", "tonalRamp": ["#8c8c88", "#a8a8a4", "#c3c3bf", "#d6d6d2", "#e4e4e0", "#ececE8", "#f2f2ee", "#f9f9f7"] },
+      "board-muted": { "role": "neutral", "displayName": "Board Mist", "canonical": "#c3c8de", "tonalRamp": ["#5a6080", "#757c9c", "#8e95b4", "#a6adc9", "#b8bed6", "#c3c8de", "#d6d9e8", "#e8eaf2"] },
+      "signal-red": { "role": "secondary", "displayName": "Signal Red", "canonical": "#eb0000", "tonalRamp": ["#3a1514", "#6e0a0a", "#a80000", "#eb0000", "#ff3b30", "#ff6b5e", "#ff9b92", "#ffd6d1"] },
+      "warning-text": { "role": "secondary", "displayName": "Warning Coral", "canonical": "#ff6b5e", "tonalRamp": ["#3a1514", "#7a2a25", "#b8443b", "#eb5a4e", "#ff6b5e", "#ff8d83", "#ffb4ab", "#ffd6d1"] },
+      "warning-wash": { "role": "secondary", "displayName": "Warning Wash", "canonical": "#3a1514", "tonalRamp": ["#1c0a09", "#2a100f", "#3a1514", "#451a18", "#5a2420", "#7a2a25", "#a03a33", "#c85a52"] }
+    },
+    "typographyMeta": {
+      "clock-time": { "displayName": "Clock Time", "purpose": "Header digital time beside the station clock." },
+      "pane-title": { "displayName": "Pane Title", "purpose": "Devices, Warnings, Frames headings over a 2px rule." },
+      "body": { "displayName": "Body", "purpose": "Table cells and messages, tabular numerals." },
+      "button": { "displayName": "Button", "purpose": "Button labels." },
+      "table-head": { "displayName": "Table Head", "purpose": "White-on-blue table and strip heads." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "row-fade", "value": "background-color 150ms ease-out", "purpose": "Row and button hover." },
+      { "name": "dial-sweep", "value": "transform 1.9s linear", "purpose": "Dwell dial hand sweeps forward only; snaps back with no transition." },
+      { "name": "seconds-hand", "value": "58.5s sweep, 1.5s rest at 12", "purpose": "Station clock seconds hand; parks at 12 when offline; whole-second steps under reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "narrow", "value": "960px" },
+      { "name": "phone", "value": "560px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Station Clock",
+      "kind": "custom",
+      "description": "Swiss railway clock with a red seconds hand; parks at 12 when the server is unreachable.",
+      "html": "<svg class=\"ds-clock\" viewBox=\"0 0 100 100\" width=\"52\" height=\"52\"><circle cx=\"50\" cy=\"50\" r=\"47\" fill=\"#f2f2ee\"></circle><line x1=\"50\" y1=\"58\" x2=\"50\" y2=\"27\" stroke=\"#121417\" stroke-width=\"6.5\"></line><line x1=\"50\" y1=\"60\" x2=\"50\" y2=\"12\" stroke=\"#121417\" stroke-width=\"4.5\" transform=\"rotate(60 50 50)\"></line><g class=\"ds-sec\"><line x1=\"50\" y1=\"66\" x2=\"50\" y2=\"24\" stroke=\"#eb0000\" stroke-width=\"1.8\"></line><circle cx=\"50\" cy=\"24\" r=\"6.5\" fill=\"#eb0000\"></circle></g></svg>",
+      "css": ".ds-clock { display: block; background: #1d2858; padding: 8px; }"
+    },
+    {
+      "name": "Dwell Dial",
+      "kind": "custom",
+      "description": "Per-device dial; hand sweeps toward the red limit tick at 12.",
+      "html": "<svg class=\"ds-dial\" viewBox=\"0 0 100 100\" width=\"36\" height=\"36\"><circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"#22262b\" stroke=\"#2c3036\" stroke-width=\"2\"></circle><line x1=\"50\" y1=\"6\" x2=\"50\" y2=\"14\" stroke=\"#eb0000\" stroke-width=\"7\"></line><g transform=\"rotate(120 50 50)\"><line x1=\"50\" y1=\"58\" x2=\"50\" y2=\"18\" stroke=\"#eb0000\" stroke-width=\"3\"></line><circle cx=\"50\" cy=\"18\" r=\"8\" fill=\"#eb0000\"></circle></g></svg>",
+      "css": ".ds-dial { display: block; }"
+    },
+    {
+      "name": "Board Button",
+      "kind": "button",
+      "refersTo": "button",
+      "description": "Outlined sharp button on the blue band; pressed state inverts.",
+      "html": "<button class=\"ds-button\">Pause</button>",
+      "css": ".ds-button { font: 700 13px Arimo, Helvetica, Arial, sans-serif; color: #f2f2ee; background: #1d2858; border: 1px solid #8c95c4; border-radius: 2px; padding: 6px 14px; cursor: pointer; transition: background-color 150ms ease-out, border-color 150ms ease-out; } .ds-button:hover { background: #2c3a78; border-color: #f2f2ee; } .ds-button:active { background: #36468c; } .ds-button:focus-visible { outline: 2px solid #f2f2ee; outline-offset: 2px; }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "Secondary action on dark ground (View, Show all devices).",
+      "html": "<button class=\"ds-button-quiet\">View</button>",
+      "css": ".ds-button-quiet { font: 400 13px Arimo, Helvetica, Arial, sans-serif; color: #ecece8; background: #121417; border: 1px solid #2c3036; border-radius: 2px; padding: 4px 10px; cursor: pointer; transition: background-color 150ms ease-out, border-color 150ms ease-out; } .ds-button-quiet:hover { background: #22262b; border-color: #9aa0a7; } .ds-button-quiet:focus-visible { outline: 2px solid #f2f2ee; outline-offset: 2px; }"
+    },
+    {
+      "name": "Device Timetable",
+      "kind": "custom",
+      "refersTo": "table-head",
+      "description": "Blue-headed ruled table; selected row is blue, warning row is red wash with an icon and word.",
+      "html": "<table class=\"ds-table\"><thead><tr><th>Device</th><th>Status</th><th class=\"n\">Conf.</th></tr></thead><tbody><tr><td><b>0123456789ab</b></td><td class=\"clear\">Clear</td><td class=\"n\">0.12</td></tr><tr class=\"sel\"><td><b>a1b2c3d4e5f6</b></td><td>Pedestrian 2.1 s of 5 s</td><td class=\"n\">0.81</td></tr><tr class=\"warn\"><td><b>ffeeddccbbaa</b></td><td class=\"w\"><b>&#9650; Warning</b> 5.2 s</td><td class=\"n\">0.93</td></tr></tbody></table>",
+      "css": ".ds-table { width: 100%; border-collapse: collapse; font: 14px/1.45 Arimo, Helvetica, Arial, sans-serif; font-variant-numeric: tabular-nums; color: #ecece8; } .ds-table th { text-align: left; font-size: 12px; font-weight: 700; color: #f2f2ee; background: #1d2858; padding: 6px 8px; } .ds-table td { padding: 8px; border-bottom: 1px solid #2c3036; } .ds-table .n { text-align: right; } .ds-table .clear { color: #9aa0a7; } .ds-table tr.sel { background: #1d2858; color: #f2f2ee; } .ds-table tr.warn { background: #3a1514; } .ds-table .w { color: #ff6b5e; }"
+    },
+    {
+      "name": "Frame Tile",
+      "kind": "card",
+      "description": "4:3 thumbnail with time, confidence bar, status; warning tiles take a red outline and stamp.",
+      "html": "<div class=\"ds-frame\"><div class=\"ds-img\"><span class=\"ds-stamp\">&#9650; Warning</span></div><div class=\"ds-meta\"><b>14:02:11</b><span>0.93</span></div><div class=\"ds-bar\"><span></span></div><div class=\"ds-st\">Pedestrian · 5.2 s</div></div>",
+      "css": ".ds-frame { width: 132px; font: 12px Arimo, Helvetica, Arial, sans-serif; color: #ecece8; } .ds-img { position: relative; aspect-ratio: 4 / 3; background: #1a1d21; outline: 3px solid #eb0000; outline-offset: -3px; } .ds-stamp { position: absolute; left: 0; top: 0; background: #eb0000; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px 2px 4px; } .ds-meta { display: flex; justify-content: space-between; padding-top: 6px; } .ds-bar { height: 3px; background: #2c3036; margin-top: 2px; } .ds-bar span { display: block; width: 93%; height: 100%; background: #ecece8; }"
+    },
+    {
+      "name": "Warning Banner",
+      "kind": "custom",
+      "description": "Full-width red-wash bar shown while the server is unreachable.",
+      "html": "<div class=\"ds-banner\"><span>&#9650;</span><span>Server unreachable. Retrying every 2 seconds; the clock stops until data returns.</span></div>",
+      "css": ".ds-banner { display: flex; gap: 8px; align-items: center; padding: 8px 24px; background: #3a1514; color: #ffd6d1; border-bottom: 1px solid #eb0000; font: 14px Arimo, Helvetica, Arial, sans-serif; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Station Clock Timetable",
+    "overview": "A departure board seen from a dark control room. The page is a Swiss timetable: flat ruled tables on a near-black ground, one neo-grotesque (Arimo, self-hosted) at a handful of sizes, and a single saturated blue (the departure-board band) that marks every header. Information is arranged like a station concourse: a clock that tells you the system is alive, rows that tell you what each device is doing, and strips of frames underneath.\n\nRed is the only alarm color and is scarce by construction: it appears on the station clock's seconds hand, the dwell-limit tick, and warning states. A calm screen has almost no red on it, so any red is news. Everything else is ground, grey, or board blue.",
+    "keyCharacteristics": [
+      "Dark-first, flat, ruled; depth comes from tone and rules, never shadow.",
+      "One typeface, tabular numerals everywhere, weight (400 vs 700) as the main hierarchy lever.",
+      "Board blue for structure (header band, table heads, strip heads, selected row); red for alarm only.",
+      "Instrument metaphors do the state-telling: a station clock in the header, a dwell dial per device.",
+      "Warning is never color alone: it also carries a triangle icon, the word \"Warning\", and a filled dial."
+    ],
+    "rules": [
+      { "name": "The Red Is News Rule", "body": "Red marks the seconds hand and warnings, nothing else. Never use it for decoration, links, hover, or errors that are not warnings.", "section": "colors" },
+      { "name": "The Board Blue Rule", "body": "Blue is structure (heads, band, selection). It never carries meaning about device state.", "section": "colors" },
+      { "name": "The Not Color Alone Rule", "body": "Every red state pairs with an icon, a word, or a shape change.", "section": "colors" },
+      { "name": "The Weight Not Size Rule", "body": "Differentiate with 400 versus 700 before reaching for a new size. Quiet states are 400 in muted grey; attention states are 700.", "section": "typography" },
+      { "name": "The Tabular Rule", "body": "Numbers stay tabular and right-aligned (num columns).", "section": "typography" },
+      { "name": "The Flat Timetable Rule", "body": "Separate with rules and tone, never with shadow or blur.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do build new surfaces from ruled tables and strips on Night Ground, with blue heads.",
+      "Do reserve Signal Red for the seconds hand, the dwell limit, and warning states; use Warning Coral for red text.",
+      "Do pair every warning signal with an icon or word as well as red.",
+      "Do keep numerals tabular and right-aligned, and use 400/700 weight for hierarchy.",
+      "Do use the 4/8/12/16/24/32 spacing scale and 2px corners.",
+      "Do honor reduced motion: no sweeping hands, no transitions."
+    ],
+    "donts": [
+      "Don't add shadows, glows, gradients, or blur.",
+      "Don't use red for hover, links, selection, or non-warning errors.",
+      "Don't introduce a second typeface or load fonts from a network; Arimo is self-hosted for offline LAN use.",
+      "Don't use blue to signal state; it is structural only.",
+      "Don't use large bright surfaces; the clock face is the brightest object on the page."
+    ]
+  }
+}
