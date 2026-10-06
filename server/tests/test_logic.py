@@ -90,3 +90,34 @@ def test_large_backward_clock_jump_resets_and_accepts():
     logic = make()
     feed(logic, [(t, POS) for t in range(1000, 1003)])  # clock was far ahead
     assert feed(logic, [(t, POS) for t in range(10, 16)]) == [15]
+
+
+def test_current_dwell_unknown_device_is_zero():
+    assert make().current_dwell("000000000000") == 0.0
+
+
+def test_current_dwell_tracks_run():
+    logic = make()
+    feed(logic, [(0, POS), (1, POS), (2, POS)])
+    assert logic.current_dwell(MAC) == 2.0
+
+
+def test_current_dwell_negative_frame_keeps_run():
+    logic = make()
+    feed(logic, [(0, POS), (1, POS), (2, NEG)])
+    assert logic.current_dwell(MAC) == 1.0
+
+
+def test_current_dwell_restarts_after_gap():
+    logic = make()
+    feed(logic, [(0, POS), (1, POS), (7, POS)])
+    assert logic.current_dwell(MAC) == 0.0
+    feed(logic, [(8, POS)])
+    assert logic.current_dwell(MAC) == 1.0
+
+
+def test_current_dwell_zero_after_reset():
+    logic = make()
+    feed(logic, [(0, POS), (1, POS)])
+    logic.reset(MAC)
+    assert logic.current_dwell(MAC) == 0.0

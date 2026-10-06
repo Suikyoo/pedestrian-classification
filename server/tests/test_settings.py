@@ -27,3 +27,10 @@ def test_reads_env_file(tmp_path):
     assert s.alert_dwell_seconds == 8
     assert s.mqtt_user == "server"
     assert s.mqtt_pass == ""
+
+
+def test_dashboard_defaults():
+    s = Settings(_env_file=None)
+    assert s.inference_history == 200
+    assert s.web_host == "0.0.0.0"
+    assert s.web_port == 8000

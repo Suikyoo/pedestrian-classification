@@ -65,3 +65,10 @@ class DwellLogic:
 
     def reset(self, mac: str) -> None:
         self._states.pop(mac, None)
+
+    def current_dwell(self, mac: str) -> float:
+        """Seconds the current pedestrian run has lasted (0.0 if there is none)."""
+        s = self._states.get(mac)
+        if s is None or s.first_seen is None or s.last_seen is None:
+            return 0.0
+        return s.last_seen - s.first_seen

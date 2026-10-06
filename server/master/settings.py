@@ -19,3 +19,6 @@ class Settings(BaseSettings):
     max_gap_seconds: float = 3.0
     alert_cooldown_seconds: float = 30.0
     events_dir: Path = Path("./events")
+    inference_history: int = 200
+    web_host: str = "0.0.0.0"
+    web_port: int = 8000
