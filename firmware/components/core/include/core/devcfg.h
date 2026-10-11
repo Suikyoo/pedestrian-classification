@@ -20,7 +20,11 @@ typedef struct {
     uint8_t jpeg_quality;     /* 0..63, lower = better */
     devcfg_frame_t frame_size;
     uint8_t volume;           /* 0..100 */
-    bool streaming;
+    bool streaming;           /* also send frames to master; detection always runs */
+    float threshold;          /* 0.05..0.99: a frame with score >= threshold is positive */
+    float dwell_s;            /* 0..600: positive run length before an alert */
+    float max_gap_s;          /* 0.5..60: no positive frame for longer ends the run */
+    float cooldown_s;         /* 0..3600: minimum time between alerts */
 } devcfg_t;
 
 void devcfg_defaults(devcfg_t *c);
