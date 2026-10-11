@@ -5,6 +5,7 @@
 #include "cmd.h"
 #include "config_store.h"
 #include "core/proto.h"
+#include "detect.h"
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "mqtt_link.h"
@@ -23,6 +24,9 @@ void app_main(void)
 
     if (camera_init(&cfg) != ESP_OK) {
         ESP_LOGE(TAG, "camera unavailable; stream will retry and reboot if it keeps failing");
+    }
+    if (detect_init() != ESP_OK) {
+        ESP_LOGE(TAG, "pedestrian detection unavailable: no local alerts until the model is flashed");
     }
     ESP_ERROR_CHECK(audio_init());
     audio_set_volume(cfg.volume);
