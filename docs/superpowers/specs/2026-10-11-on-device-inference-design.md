@@ -48,7 +48,7 @@ Move pedestrian detection and the dwell/alert decision from the master server on
 
 ## 3. Firmware
 
-ESP-IDF **v5.3 or later** (ESP-DL requirement; was v5.1). `idf_component.yml` gains `espressif/esp-dl` and `espressif/pedestrian_detect`, and `idf` becomes `">=5.3"`.
+ESP-IDF **v5.3 or later** (ESP-DL requirement; was v5.1). Development uses v5.5. `idf_component.yml` gains `espressif/esp-dl` and `espressif/pedestrian_detect`, and `idf` becomes `">=5.3"`. `firmware/README.md` changes its supported range from v5.1–v5.4 to v5.3–v5.5.
 
 ### 3.1 Data flow
 
