@@ -40,7 +40,7 @@ Move pedestrian detection and the dwell/alert decision from the master server on
 | Architecture | Full on-device alerting; master optional | Removes the server from the alert path; minimal LTE data |
 | Model | Espressif `pedestrian_detect` (`pico_s8_v1_s3`, 224×224, INT8, ≈ 118 ms on S3) | Prebuilt and tuned for the S3; same interface as our own model later |
 | "Classification" | Max box score of the detector | Backbone dominates cost; a 224 px detector catches small, far pedestrians better than a 96 px whole-frame classifier |
-| Frame pipeline | Capture JPEG, decode at 1/2 scale for inference | Snapshot and stream frames reuse the JPEG; `frame_size` and `jpeg_quality` keep their meaning |
+| Frame pipeline | Capture JPEG, decode for inference | Snapshot and stream frames reuse the JPEG; `frame_size` and `jpeg_quality` keep their meaning |
 | Empty scene | Send nothing | Goal 1 |
 | Alert ownership | Device always; master never publishes `alert` on its own | One source of truth; stream mode only observes |
 | Dwell clock | Monotonic `esp_timer`, not SNTP | Alerts need no wall clock; no out-of-order or clock-jump cases |
@@ -112,11 +112,11 @@ esp_err_t detect_init(void);                          /* load model from partiti
 float detect_score(const uint8_t *jpeg, size_t len);  /* max pedestrian score 0..1; < 0 on failure */
 ```
 
-`detect_score` decodes the JPEG at 1/2 scale into a PSRAM RGB buffer (reused between calls), runs `PedestrianDetect`, and returns the highest result score, or 0 when there are no results. If ESP-DL's JPEG helper does not support scaled decode, the plan uses `esp_new_jpeg` directly. `detect_init` failure is logged and the device keeps running: every frame then counts as failed.
+`detect_score` decodes the JPEG with ESP-DL's `sw_decode_jpeg` into a PSRAM RGB888 image (full size: the helper has no scale option), runs `PedestrianDetect` with its own score floor lowered to 0.05 so that `threshold` decides, and returns the highest result score, or 0 when there are no results. If decode plus inference exceeds 250 ms at VGA on the device, a scaled decode is discussed with the user before adding another decoder. `detect_init` failure is logged and the device keeps running: every frame then counts as failed.
 
 **`main/stream.c`** (changed). The loop described in §3.1. The device keeps one `dwell_t`. The current capture timestamp (`timesync_capture_ms()`) is used only for reporting. If `detect_score` fails 5 frames in a row, the device logs an error and reports `detect_ok: false` in status until a frame succeeds.
 
-**`main/event.c`, `main/event.h`** (new). Formats and publishes `{mac}/event` (§4.2). It uses `esp_mqtt_client_enqueue` so an event raised while disconnected is delivered after reconnect. At most 4 undelivered events are kept; when a fifth is raised, the oldest is dropped and a warning is logged.
+**`main/event.c`, `main/event.h`** (new). Formats `{mac}/event` (§4.2) and keeps it in its own queue in PSRAM. A publisher task sends queued events with QoS 1 whenever MQTT is connected, so an event raised while disconnected is delivered after reconnect. At most 4 undelivered events are kept; when a fifth is raised, the oldest one not currently being sent is dropped and a warning is logged.
 
 **`components/core/devcfg.c`** (changed). New fields and defaults (defaults match the current server `.env`):
 
