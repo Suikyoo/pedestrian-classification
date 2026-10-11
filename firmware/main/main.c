@@ -48,6 +48,7 @@ void app_main(void)
     const mqtt_link_handlers_t handlers = {
         .on_message = cmd_submit,
         .on_connected = status_request,
+        .on_published = event_on_published,
     };
     ESP_ERROR_CHECK(mqtt_link_start(id, &handlers));
     ESP_ERROR_CHECK(event_start());
