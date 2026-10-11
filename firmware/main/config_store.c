@@ -8,7 +8,9 @@
 
 static const char *TAG = "config_store";
 static const char *NS = "edge";
-static const char *KEY = "devcfg";
+/* "devcfg2": devcfg_t gained the detection fields. A blob under the old key has
+ * the old layout and is ignored, so such a device starts from the defaults. */
+static const char *KEY = "devcfg2";
 
 static devcfg_t s_cfg;
 static SemaphoreHandle_t s_lock;

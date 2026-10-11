@@ -8,6 +8,7 @@
 #include "detect.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "event.h"
 #include "mqtt_link.h"
 #include "net.h"
 #include "status.h"
@@ -49,6 +50,7 @@ void app_main(void)
         .on_connected = status_request,
     };
     ESP_ERROR_CHECK(mqtt_link_start(id, &handlers));
+    ESP_ERROR_CHECK(event_start());
     ESP_ERROR_CHECK(stream_start());
     ESP_LOGI(TAG, "running as %s", id);
 }

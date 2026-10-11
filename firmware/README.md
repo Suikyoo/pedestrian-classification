@@ -1,8 +1,12 @@
 # Pedestrian alert — edge firmware
 
-ESP-IDF firmware for the edge device. It sends camera frames to the master over
-MQTT and plays an alert sound when the master publishes `{id}/alert`.
-Design: `docs/superpowers/specs/2026-09-29-pedestrian-alert-design.md`.
+ESP-IDF firmware for the edge device. It detects pedestrians on the device with
+Espressif's INT8 `pedestrian_detect` model (ESP-DL), plays the alert sound itself
+when a pedestrian stays in view for `dwell_s`, and reports each alert to the master
+as `{id}/event` with a snapshot. Frames go to the master only in stream mode
+(`python -m master.cli start <id>`).
+Design: `docs/superpowers/specs/2026-10-11-on-device-inference-design.md`
+(original: `2026-09-29-pedestrian-alert-design.md`).
 
 Board: Freenove ESP32-S3-WROOM CAM (Wi-Fi). Network and pins are behind
 `main/net.h` and `main/board.h`; LTE (Waveshare ESP32-S3-SIM7670G-4G) is added
@@ -23,16 +27,16 @@ the bring-up checklist below to verify it.
 
 ### 1. Install ESP-IDF (once per machine)
 
-Supported: **ESP-IDF v5.1 to v5.4** (v5.3 or v5.4 recommended). ESP-IDF 6.x is not
+Supported: **ESP-IDF v5.3 to v5.5** (ESP-DL needs v5.3 or later; developed on v5.5). ESP-IDF 6.x is not
 supported yet (see Troubleshooting).
 
 - **Windows:** install with the ESP-IDF Windows Installer (Espressif's "ESP-IDF
-  Tools Installer"), choosing v5.3 or v5.4. It adds an **"ESP-IDF PowerShell"** (and
+  Tools Installer"), choosing v5.5. It adds an **"ESP-IDF PowerShell"** (and
   "ESP-IDF CMD") shortcut; run every `idf.py` command below from that shortcut.
 - **Linux / macOS:**
   ```sh
   mkdir -p ~/esp && cd ~/esp
-  git clone -b v5.4 --recursive https://github.com/espressif/esp-idf.git
+  git clone -b v5.5 --recursive https://github.com/espressif/esp-idf.git
   cd esp-idf && ./install.sh esp32s3
   . ./export.sh            # run this in every new terminal
   ```
@@ -105,8 +109,9 @@ idf.py build
 ```
 
 The first build needs internet access once: the component manager downloads
-`espressif/esp32-camera` (declared in `main/idf_component.yml`) into
-`managed_components/`. A successful build ends with
+`espressif/esp32-camera`, `espressif/esp-dl`, and `espressif/pedestrian_detect`
+(declared in `main/idf_component.yml`) into `managed_components/`.
+A successful build ends with
 `Project build complete` and the image `build/pedestrian_edge.bin`. The build
 prints the image size and the free space left in the 4 MB factory partition.
 
@@ -128,6 +133,15 @@ The log should show, in order: `config_store`, `audio: ready: 19200-byte clip on
 GPIO 14`, `net_wifi: got ip ...`, `mqtt_link: connected`, and
 `main: running as <id>`. `<id>` is the device ID used by the server, the CLI and
 the dashboard.
+
+`idf.py flash` also writes the pedestrian model into the `pedestrian_det`
+partition. The log then shows `detect: model loaded in ... ms`, and every 30th
+frame `detect: 640x480: decode .. ms, inference .. ms, score ..`. `app-flash`
+skips the model; a board flashed only that way logs
+`pedestrian_det partition is empty` and reports `detect_ok: false`.
+
+To try another model without rebuilding:
+`parttool.py write_partition --partition-name pedestrian_det --input <model>.espdl`.
 
 ### Rebuilding after changes
 
@@ -161,6 +175,9 @@ These are the spots the code review could not confirm without a compiler:
 | `Camera init failed` | Reseat the camera ribbon (contacts facing the board) and power-cycle. The firmware retries and reboots after 5 failed captures. |
 | Wi-Fi never connects | SSID is empty or wrong (the log says `WIFI_SSID is empty`), or the network is 5 GHz only. |
 | `MQTT_URI is still the example value` | Set the broker URI in menuconfig (step 4). |
+| `Failed to resolve component 'espressif/pedestrian_detect'` | Run `idf.py add-dependency "espressif/pedestrian_detect"` with internet access, then build. |
+| `pedestrian_det partition is empty` at boot | The model was not flashed. Run `idf.py flash` (not `app-flash`). |
+| `detect: ... inference` well above 250 ms | Check that `sdkconfig` has `CONFIG_COMPILER_OPTIMIZATION_PERF=y` and 64 KB data cache; delete `sdkconfig` and rebuild if it came from older defaults. |
 | Watchdog reboots during large frame uploads | Lower `frame_size` or raise `jpeg_quality` with `python -m master.cli config <id> ...`. |
 
 ## Alert sound
@@ -180,16 +197,24 @@ Common ground. Set the level with the module's volume knob.
 Run in order; each step depends on the previous one.
 
 1. `idf.py build` succeeds with no warnings in `main/` or `components/core/`.
-2. Boot log shows `config_store: ...`, `audio: ready: 19200-byte clip on GPIO 14`, no camera error.
+2. Boot log shows `config_store: ...`, `audio: ready: 19200-byte clip on GPIO 14`,
+   `detect: model loaded in ... ms`, no camera error.
 3. `net_wifi: got ip ...` within 10 s; unplug the AP → `disconnected, retry in 5000 ms`, then 10000, 30000.
 4. `mqtt_link: connected` and `main: running as <id>`. On the PC:
-   `mosquitto_sub -t '<id>/#' -v` shows `<id>/online 1` and `<id>/status {...}`.
-5. Frames arrive: `mosquitto_sub -t '<id>/image' -C 1 | wc -c` is > 8 bytes.
-   Server log shows the device; after SNTP sync, frame timestamps are current (not 0).
-6. `python -m master.cli alert <id>` → chime plays once; `--repeat 3` → three times.
-7. `python -m master.cli config <id> volume=30` → quieter. `frame_size=QVGA` → smaller frames.
-   `volume=150` is rejected by the CLI; a hand-published `{"volume":150}` is logged as rejected by the device.
-8. `python -m master.cli stop <id>` → frames stop; reboot the device → still stopped; `start` → frames resume.
-9. `python -m master.cli status <id>` → new status message; `reboot <id>` → device restarts and reconnects.
-10. Power off the device → `<id>/online 0` within about 45 s (keepalive 30 s × 1.5).
-11. End to end with `python -m master.app` running: stand in view for `ALERT_DWELL_SECONDS` → chime; walk through quickly → no chime.
+   `mosquitto_sub -t '<id>/#' -v` shows `<id>/online 1` and `<id>/status {...}` with
+   `"detect_ok":true` and the detection settings.
+5. Timing: the `detect:` log line shows decode + inference ≤ 250 ms at VGA.
+6. Empty scene, streaming off (the default): `mosquitto_sub -t '<id>/#' -v` shows
+   only `status` every 60 s. No `image`, no `event`.
+7. Stand in view for `dwell_s` (default 5 s): the chime plays, the log shows
+   `stream: ALERT ...` then `event: event sent`, and the dashboard lists a warning
+   with a snapshot. Walk through quickly: no chime.
+8. Network off (unplug the AP), stand in view: the chime still plays. Plug the AP
+   back in: the warning appears on the dashboard after reconnect.
+9. `python -m master.cli start <id>` → frames arrive; the dashboard shows YOLO and
+   device scores side by side. `stop <id>` → frames stop; reboot → still stopped.
+10. `python -m master.cli config <id> threshold=0.5 dwell_s=3` → the device logs the
+    new config and its next status shows them. `threshold=1.5` is rejected by the CLI.
+11. `python -m master.cli alert <id>` → chime plays once; `--repeat 3` → three times.
+12. `python -m master.cli status <id>` → new status message; `reboot <id>` → device restarts and reconnects.
+13. Power off the device → `<id>/online 0` within about 45 s (keepalive 30 s × 1.5).

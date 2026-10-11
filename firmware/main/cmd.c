@@ -64,9 +64,12 @@ static void handle_config(const char *data, size_t len)
         }
     }
     audio_set_volume(next.volume);
-    ESP_LOGI(TAG, "config: interval_ms=%lu quality=%u frame=%s volume=%u",
+    ESP_LOGI(TAG, "config: interval_ms=%lu quality=%u frame=%s volume=%u threshold=%.2f "
+                  "dwell=%.1fs gap=%.1fs cooldown=%.0fs",
              (unsigned long)next.interval_ms, next.jpeg_quality,
-             devcfg_frame_name(next.frame_size), next.volume);
+             devcfg_frame_name(next.frame_size), next.volume, next.threshold,
+             next.dwell_s, next.max_gap_s, next.cooldown_s);
+    status_request(); /* report the new active settings right away */
 }
 
 static void handle_cmd(const char *data, size_t len)

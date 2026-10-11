@@ -8,7 +8,8 @@ set(srcs
     "stream.c"
     "audio.c"
     "status.c"
-    "detect.cpp")
+    "detect.cpp"
+    "event.c")
 
 # Exactly one network backend implements net.h.
 if(CONFIG_NET_BACKEND_WIFI)
