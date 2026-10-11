@@ -1,6 +1,7 @@
 // The only C++ file: a C facade over ESP-DL's PedestrianDetect.
 #include "detect.h"
 
+#include <cstring>
 #include <new>
 
 #include "dl_image_jpeg.hpp"
@@ -27,10 +28,26 @@ esp_err_t detect_init(void)
         ESP_LOGE(TAG, "no pedestrian_det partition; detection disabled");
         return ESP_ERR_NOT_FOUND;
     }
-    uint32_t magic = 0xFFFFFFFF;
-    if (esp_partition_read(part, 0, &magic, sizeof magic) != ESP_OK || magic == 0xFFFFFFFF) {
+    char magic[5] = {0};
+    if (esp_partition_read(part, 0, magic, 4) != ESP_OK ||
+        (magic[0] & magic[1] & magic[2] & magic[3] & 0xFF) == 0xFF) {
         ESP_LOGE(TAG, "pedestrian_det partition is empty (run idf.py flash); detection disabled");
         return ESP_ERR_INVALID_STATE;
+    }
+    // ESP-DL's loader accepts only these format tags at offset 0.
+    static const char *const kMagics[] = {"EDL1", "EDL2", "PDL1", "PDL2", "PDL3"};
+    bool known = false;
+    for (const char *m : kMagics) {
+        if (memcmp(magic, m, 4) == 0) {
+            known = true;
+            break;
+        }
+    }
+    if (!known) {
+        ESP_LOGE(TAG, "pedestrian_det does not hold an ESP-DL model (magic %02x%02x%02x%02x); detection disabled",
+                 (unsigned)(uint8_t)magic[0], (unsigned)(uint8_t)magic[1], (unsigned)(uint8_t)magic[2],
+                 (unsigned)(uint8_t)magic[3]);
+        return ESP_ERR_INVALID_VERSION;
     }
     int64_t t0 = esp_timer_get_time();
     s_model = new (std::nothrow) PedestrianDetect(PedestrianDetect::PICO_S8_V1, false);
