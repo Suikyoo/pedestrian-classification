@@ -19,19 +19,71 @@ static void test_topic(void)
     CHECK(!proto_topic(small, sizeof small, "a1b2c3d4e5f6", "image"));
 }
 
+static uint64_t le(const uint8_t *p, int n)
+{
+    uint64_t v = 0;
+    for (int i = n - 1; i >= 0; i--) {
+        v = (v << 8) | p[i];
+    }
+    return v;
+}
+
 static void test_header(void)
 {
     uint8_t h[PROTO_HEADER_SIZE];
-    proto_pack_header(h, 0x0102030405060708ULL);
-    const uint8_t expected[8] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
-    CHECK(memcmp(h, expected, 8) == 0);
+    CHECK_INT(PROTO_HEADER_SIZE, 12);
 
-    proto_pack_header(h, 1727600000123ULL);
-    uint64_t back = 0;
-    for (int i = 7; i >= 0; i--) {
-        back = (back << 8) | h[i];
-    }
-    CHECK(back == 1727600000123ULL);
+    proto_pack_header(h, 0x0102030405060708ULL, 0.5f, 2000);
+    const uint8_t expected[12] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0xF4, 0x01, 0x14, 0x00};
+    CHECK(memcmp(h, expected, 12) == 0);
+
+    proto_pack_header(h, 1727600000123ULL, 0.8346f, 5150);
+    CHECK(le(h, 8) == 1727600000123ULL);
+    CHECK_INT(le(h + 8, 2), 835);
+    CHECK_INT(le(h + 10, 2), 51);
+}
+
+static void test_header_score_edges(void)
+{
+    uint8_t h[PROTO_HEADER_SIZE];
+    proto_pack_header(h, 0, -1.0f, 0);
+    CHECK_INT(le(h + 8, 2), PROTO_SCORE_FAILED);
+    proto_pack_header(h, 0, 0.0f / 0.0f, 0); /* NaN counts as failed */
+    CHECK_INT(le(h + 8, 2), PROTO_SCORE_FAILED);
+    proto_pack_header(h, 0, 0.0f, 0);
+    CHECK_INT(le(h + 8, 2), 0);
+    proto_pack_header(h, 0, 1.0f, 0);
+    CHECK_INT(le(h + 8, 2), 1000);
+    proto_pack_header(h, 0, 1.7f, 0);
+    CHECK_INT(le(h + 8, 2), 1000);
+}
+
+static void test_header_dwell_saturates(void)
+{
+    uint8_t h[PROTO_HEADER_SIZE];
+    proto_pack_header(h, 0, 0.5f, 6553500);
+    CHECK_INT(le(h + 10, 2), 65535);
+    proto_pack_header(h, 0, 0.5f, 7000000);
+    CHECK_INT(le(h + 10, 2), 65535);
+    proto_pack_header(h, 0, 0.5f, 99);
+    CHECK_INT(le(h + 10, 2), 0);
+}
+
+static void test_pack_event(void)
+{
+    const char json[] = "{\"a\":1}";
+    const uint8_t jpeg[] = {0xFF, 0xD8, 0x01};
+    uint8_t out[32];
+    size_t n = proto_pack_event(out, sizeof out, json, 7, jpeg, 3);
+    CHECK_INT(n, 12);
+    CHECK_INT(le(out, 2), 7);
+    CHECK(memcmp(out + 2, json, 7) == 0);
+    CHECK(memcmp(out + 9, jpeg, 3) == 0);
+
+    CHECK_INT(proto_pack_event(out, 11, json, 7, jpeg, 3), 0);   /* does not fit */
+    CHECK_INT(proto_pack_event(out, sizeof out, json, 0, jpeg, 3), 0); /* no JSON */
+    CHECK_INT(proto_pack_event(out, sizeof out, json, 7, jpeg, 0), 0); /* no snapshot */
+    CHECK_INT(proto_pack_event(out, (size_t)-1, json, 70000, jpeg, 3), 0); /* JSON too long for u16 */
 }
 
 static void test_capture_ms(void)
@@ -67,6 +119,9 @@ void test_proto(void)
     test_mac_to_id();
     test_topic();
     test_header();
+    test_header_score_edges();
+    test_header_dwell_saturates();
+    test_pack_event();
     test_capture_ms();
     test_kind_of();
 }

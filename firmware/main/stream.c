@@ -44,7 +44,7 @@ static void send_frame(const devcfg_t *cfg)
         camera_return(fb);
         return;
     }
-    proto_pack_header(buf, timesync_capture_ms());
+    proto_pack_header(buf, timesync_capture_ms(), -1.0f, 0); /* replaced by the detect loop in a later task */
     memcpy(buf + PROTO_HEADER_SIZE, fb->buf, fb->len);
     camera_return(fb);
 
