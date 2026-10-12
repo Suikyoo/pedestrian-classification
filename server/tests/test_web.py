@@ -119,6 +119,8 @@ def test_device_without_frames_is_listed(client, root):
     '{"threshold":"high","detect_ok":1,"dwell_s":true,"streaming":"yes","cooldown_s":null}',
     "not json",
     "[1, 2]",
+    pytest.param('{"threshold":1' + "0" * 400 + "}", id="huge-int"),
+    pytest.param("[" * 100000, id="deep-nesting"),
 ])
 def test_status_fields_type_checked(client, root, status):
     store = EventStore(root)
@@ -127,6 +129,14 @@ def test_status_fields_type_checked(client, root, status):
     [row] = client.get("/api/devices").json()
     for key in ("threshold", "detect_ok", "dwell_s", "streaming", "cooldown_s", "max_gap_s"):
         assert row[key] is None
+
+
+def test_valid_status_field_survives_bad_sibling(client, root):
+    store = EventStore(root)
+    store.update_device(MAC, online=True, status='{"threshold":0.5,"dwell_s":"x"}', seen_ts=50.0)
+    store.close()
+    [row] = client.get("/api/devices").json()
+    assert row["threshold"] == 0.5 and row["dwell_s"] is None
 
 
 def test_devices_without_events_table(client, root):

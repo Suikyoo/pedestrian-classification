@@ -145,6 +145,12 @@ def test_invalid_status_not_stored():
     assert [d["status"] for d in app.events.devices] == [None, None]
 
 
+def test_deeply_nested_status_not_stored():
+    app = make_app(clock=Clock(42.0))
+    app.on_message(f"{MAC}/status", b"[" * 100000)
+    assert [d["status"] for d in app.events.devices] == [None]
+
+
 def test_online_messages():
     app = make_app(clock=Clock(42.0))
     app.on_message(f"{MAC}/online", b"1")

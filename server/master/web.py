@@ -31,7 +31,7 @@ def _status_fields(text: str | None) -> dict:
     device and is untrusted: a missing or wrongly typed field becomes None."""
     try:
         status = json.loads(text) if text else {}
-    except ValueError:
+    except (ValueError, RecursionError):
         status = {}
     if not isinstance(status, dict):
         status = {}
@@ -41,9 +41,18 @@ def _status_fields(text: str | None) -> dict:
         out[key] = v if isinstance(v, bool) else None
     for key in _STATUS_NUMBERS:
         v = status.get(key)
-        ok = isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
-        out[key] = float(v) if ok else None
+        out[key] = _finite_float(v)
     return out
+
+
+def _finite_float(v) -> float | None:
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return None
+    try:
+        f = float(v)
+    except OverflowError:  # an int too large for a float
+        return None
+    return f if math.isfinite(f) else None
 
 
 def _bool_or_none(v) -> bool | None:

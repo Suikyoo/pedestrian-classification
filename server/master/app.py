@@ -118,7 +118,7 @@ class MasterApp:
         text = payload.decode("utf-8", "replace")
         try:
             ok = isinstance(json.loads(text), dict)
-        except ValueError:
+        except (ValueError, RecursionError):
             ok = False
         if not ok:
             log.warning("%s: status is not a JSON object: %r", mac, text[:200])
