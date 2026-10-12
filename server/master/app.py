@@ -70,10 +70,11 @@ class MasterApp:
 
     def _on_image(self, mac: str, payload: bytes) -> None:
         try:
-            capture_ms, jpeg = protocol.parse_image(payload)
+            frame = protocol.parse_image(payload)
         except protocol.ProtocolError as e:
             log.warning("%s: dropping frame: %s", mac, e)
             return
+        capture_ms, jpeg = frame.capture_ms, frame.jpeg
         source = "device" if capture_ms else "server"
         ts = capture_ms / 1000 if capture_ms else self.clock()
         with self._lock:
