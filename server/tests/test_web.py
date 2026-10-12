@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 
 from master.events import EventStore
-from master.logic import Alert
+from master.events import Alert
 from master.settings import Settings
 from master.web import create_app
 
