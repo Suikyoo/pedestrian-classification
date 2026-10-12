@@ -1,8 +1,11 @@
 # Pedestrian alert — master server
 
-Receives camera frames from edge devices over MQTT, detects people with YOLO11n,
-and sends `{mac}/alert` when a person stays in view for `ALERT_DWELL_SECONDS`.
-Design: `docs/superpowers/specs/2026-09-29-pedestrian-alert-design.md`.
+Edge devices detect pedestrians and play the warning themselves. The master records
+each device's warnings (`{mac}/event`, with a snapshot) and status, serves the LAN
+dashboard, and, for devices in stream mode (`python -m master.cli start <mac>`),
+scores their frames with YOLO11n so the dashboard shows YOLO and device scores
+side by side. The master never sends `{mac}/alert` by itself; the CLI still can.
+Design: `docs/superpowers/specs/2026-10-11-on-device-inference-design.md`.
 
 ## Setup
 
@@ -27,10 +30,19 @@ project config:
 python -m master.app
 ```
 
+### Device alert settings
+
+Each device decides warnings with its own settings, kept across reboots:
+
+    python -m master.cli config <mac> threshold=0.6 dwell_s=5 max_gap_s=3 cooldown_s=30
+
+`threshold` 0.05–0.99, `dwell_s` 0–600, `max_gap_s` 0.5–60, `cooldown_s` 0–3600.
+
 ## Dashboard
 
-Shows recent inferences (thumbnail, confidence, pedestrian or not, dwell progress,
-alert) and recent alerts. Runs as its own read-only process next to `master.app`:
+Shows every device (online state, its active threshold and dwell, last warning),
+recent warnings with snapshots, and, for streaming devices, recent frames with
+YOLO and device scores. Runs as its own read-only process next to `master.app`:
 
 ```powershell
 python -m master.web
@@ -72,6 +84,9 @@ Simulate a device without hardware:
 ```powershell
 python tools/fake_device.py --mac 0123456789ab --dir samples --interval 1
 ```
+
+Add `--event` to publish one warning event, and `--no-frames` to act like a device
+with streaming off (status only).
 
 ## Expose the broker with Cloudflare Tunnel
 
