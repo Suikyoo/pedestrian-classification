@@ -99,6 +99,10 @@ def _event(body: bytes, jpeg: bytes = b"x") -> bytes:
         _event(b'{"alert_ms":1,"first_seen_ms":0,"dwell_s":NaN,"max_score":0.5}'),
         _event(b'{"alert_ms":1,"first_seen_ms":2,"dwell_s":1,"max_score":0.5}'),  # first_seen after alert
         _event(b'{"alert_ms":-1,"first_seen_ms":-2,"dwell_s":1,"max_score":0.5}'),
+        _event(b'{"alert_ms":1,"first_seen_ms":0,"dwell_s":' + b"9" * 400 + b',"max_score":0.5}'),
+        _event(b'{"alert_ms":1,"first_seen_ms":0,"dwell_s":1,"max_score":' + b"9" * 400 + b"}"),
+        _event(b"[" * 30000),
+        _event(b'{"alert_ms":%d,"first_seen_ms":0,"dwell_s":1,"max_score":0.5}' % 2**64),
     ],
 )
 def test_parse_event_rejects(payload):

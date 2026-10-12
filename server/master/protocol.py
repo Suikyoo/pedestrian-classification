@@ -55,7 +55,12 @@ class DeviceEvent:
 
 
 def _is_number(v) -> bool:
-    return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v)
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return False
+    try:
+        return math.isfinite(v)
+    except OverflowError:  # an int too large for a float
+        return False
 
 
 def topic(mac: str, kind: str) -> str:
@@ -107,15 +112,15 @@ def parse_event(payload: bytes) -> tuple[DeviceEvent, bytes]:
         raise ProtocolError("event JSON length is 0 or leaves no snapshot")
     try:
         data = json.loads(payload[EVENT_JSON_LEN.size:end])
-    except ValueError:
+    except (ValueError, RecursionError):
         raise ProtocolError("event JSON is not valid") from None
     if not isinstance(data, dict):
         raise ProtocolError("event JSON is not an object")
     times = {}
     for key in ("alert_ms", "first_seen_ms"):
         v = data.get(key)
-        if not isinstance(v, int) or isinstance(v, bool) or v < 0:
-            raise ProtocolError(f"event {key} must be a non-negative integer, got {v!r}")
+        if not isinstance(v, int) or isinstance(v, bool) or not 0 <= v < 2**64:
+            raise ProtocolError(f"event {key} must be an integer 0 to 2^64-1, got {v!r}")
         times[key] = v
     dwell_s, max_score = data.get("dwell_s"), data.get("max_score")
     if not _is_number(dwell_s) or dwell_s < 0:
