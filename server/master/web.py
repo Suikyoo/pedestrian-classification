@@ -59,13 +59,7 @@ def create_app(settings: Settings) -> FastAPI:
 
     @app.get("/api/config")
     def config() -> dict:
-        return {
-            "threshold": settings.pedestrian_conf_threshold,
-            "dwell_s": settings.alert_dwell_seconds,
-            "max_gap_s": settings.max_gap_seconds,
-            "cooldown_s": settings.alert_cooldown_seconds,
-            "history": settings.inference_history,
-        }
+        return {"threshold": settings.pedestrian_conf_threshold, "history": settings.inference_history}
 
     @app.get("/api/devices")
     def devices() -> list[dict]:

@@ -28,9 +28,7 @@ def root(tmp_path):
 
 @pytest.fixture
 def client(root):
-    s = Settings(_env_file=None, events_dir=root, pedestrian_conf_threshold=0.6,
-                 alert_dwell_seconds=5, max_gap_seconds=3, alert_cooldown_seconds=30,
-                 inference_history=200)
+    s = Settings(_env_file=None, events_dir=root, pedestrian_conf_threshold=0.6, inference_history=200)
     return TestClient(create_app(s))
 
 
@@ -50,9 +48,7 @@ def test_missing_db_returns_empty_lists(client):
 
 
 def test_config(client):
-    assert client.get("/api/config").json() == {
-        "threshold": 0.6, "dwell_s": 5.0, "max_gap_s": 3.0, "cooldown_s": 30.0, "history": 200,
-    }
+    assert client.get("/api/config").json() == {"threshold": 0.6, "history": 200}
 
 
 def test_inferences_newest_first_with_urls(client, root):
