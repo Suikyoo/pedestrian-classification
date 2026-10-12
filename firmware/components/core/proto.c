@@ -19,11 +19,42 @@ bool proto_topic(char *buf, size_t len, const char *id, const char *kind)
     return n > 0 && (size_t)n < len;
 }
 
-void proto_pack_header(uint8_t out[PROTO_HEADER_SIZE], uint64_t capture_ms)
+static void put_le(uint8_t *out, uint64_t v, int n)
 {
-    for (int i = 0; i < PROTO_HEADER_SIZE; i++) {
-        out[i] = (uint8_t)(capture_ms >> (8 * i));
+    for (int i = 0; i < n; i++) {
+        out[i] = (uint8_t)(v >> (8 * i));
     }
+}
+
+void proto_pack_header(uint8_t out[PROTO_HEADER_SIZE], uint64_t capture_ms, float score, uint32_t dwell_ms)
+{
+    uint16_t permille;
+    if (!(score >= 0.0f)) {
+        permille = PROTO_SCORE_FAILED;
+    } else if (score >= 1.0f) {
+        permille = 1000;
+    } else {
+        permille = (uint16_t)(score * 1000.0f + 0.5f);
+    }
+    uint32_t ds = dwell_ms / 100;
+    put_le(out, capture_ms, 8);
+    put_le(out + 8, permille, 2);
+    put_le(out + 10, ds > 0xFFFF ? 0xFFFF : ds, 2);
+}
+
+size_t proto_pack_event(uint8_t *out, size_t cap, const char *json, size_t json_len,
+                        const uint8_t *jpeg, size_t jpeg_len)
+{
+    if (json_len == 0 || json_len > 0xFFFF || jpeg_len == 0) {
+        return 0;
+    }
+    if (cap < 2 || json_len > cap - 2 || jpeg_len > cap - 2 - json_len) {
+        return 0;
+    }
+    put_le(out, json_len, 2);
+    memcpy(out + 2, json, json_len);
+    memcpy(out + 2 + json_len, jpeg, jpeg_len);
+    return 2 + json_len + jpeg_len;
 }
 
 uint64_t proto_capture_ms(int64_t epoch_ms)

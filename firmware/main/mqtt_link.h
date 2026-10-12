@@ -11,6 +11,9 @@ typedef struct {
     void (*on_message)(proto_kind_t kind, const char *data, size_t len);
     /* Called on the MQTT task after every (re)connect. Must not block. */
     void (*on_connected)(void);
+    /* Optional. Called on the MQTT task when the broker acknowledged a QoS 1
+     * publish (PUBACK). Must not block. */
+    void (*on_published)(int msg_id);
 } mqtt_link_handlers_t;
 
 esp_err_t mqtt_link_start(const char *device_id, const mqtt_link_handlers_t *handlers);

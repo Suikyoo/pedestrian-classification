@@ -92,3 +92,9 @@ def test_publish_confirmed_reports_delivery(published, expected):
     from master.cli import publish_confirmed
 
     assert publish_confirmed(FakeClient(published), f"{MAC}/cmd", b"{}", 1, False) is expected
+
+
+def test_config_detection_fields():
+    _, payload, _, retain = build_message(["config", MAC, "threshold=0.5", "dwell_s=3"], None)
+    assert retain is True
+    assert json.loads(payload) == {"threshold": 0.5, "dwell_s": 3.0}

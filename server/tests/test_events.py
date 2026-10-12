@@ -1,6 +1,5 @@
 from pathlib import Path
-from master.events import EventStore
-from master.logic import Alert
+from master.events import Alert, EventStore
 
 MAC = "a1b2c3d4e5f6"
 
@@ -145,4 +144,101 @@ def test_old_snapshot_paths_migrated_to_root_relative(tmp_path, monkeypatch):
     store = EventStore(root)
     snaps = sorted(r["snapshot"] for r in store.recent())
     assert snaps == [f"{MAC}/1.jpg", f"{MAC}/2.jpg", f"{MAC}/3.jpg"]
+    store.close()
+
+
+def test_alert_dwell():
+    assert Alert(first_seen=10.0, ts=15.5, max_conf=0.9).dwell_s == 5.5
+
+
+def test_device_score_stored(tmp_path):
+    store = EventStore(tmp_path)
+    store.record_inference(MAC, 1.0, 0.9, True, 2.0, False, _jpeg(64, 48), device_score=0.42)
+    store.record_inference(MAC, 2.0, 0.9, True, 3.0, False, _jpeg(64, 48))
+    rows = store.inferences(MAC)
+    assert [r["device_score"] for r in rows] == [None, 0.42]
+    store.close()
+
+
+def test_device_score_column_added_to_old_db(tmp_path):
+    con = sqlite3.connect(tmp_path / "events.db")
+    con.executescript(
+        "CREATE TABLE inferences (id INTEGER PRIMARY KEY AUTOINCREMENT, mac TEXT NOT NULL,"
+        " ts REAL NOT NULL, conf REAL NOT NULL, positive INTEGER NOT NULL, dwell_s REAL NOT NULL,"
+        " alerted INTEGER NOT NULL, thumb TEXT NOT NULL);"
+        "INSERT INTO inferences (mac, ts, conf, positive, dwell_s, alerted, thumb)"
+        " VALUES ('a1b2c3d4e5f6', 1.0, 0.5, 0, 0.0, 0, 'thumbs/x.jpg');"
+    )
+    con.commit()
+    con.close()
+    store = EventStore(tmp_path)
+    store.record_inference(MAC, 2.0, 0.9, True, 0.0, False, _jpeg(64, 48), device_score=0.7)
+    assert [r["device_score"] for r in store.inferences(MAC)] == [0.7, None]
+    store.close()
+
+
+def test_frame_then_event_marks_frame(tmp_path):
+    store = EventStore(tmp_path)
+    store.record_inference(MAC, 100.5, 0.9, True, 5.0, False, _jpeg(64, 48), match_event=True)
+    store.record_inference(MAC, 101.5, 0.9, True, 6.0, False, _jpeg(64, 48), match_event=True)
+    store.record(MAC, Alert(first_seen=95.5, ts=100.5, max_conf=0.8), b"\xff\xd8x", mark_frame=True)
+    assert {r["ts"]: r["alerted"] for r in store.inferences(MAC)} == {100.5: 1, 101.5: 0}
+    store.close()
+
+
+def test_event_then_frame_marks_frame(tmp_path):
+    store = EventStore(tmp_path)
+    store.record(MAC, Alert(first_seen=95.5, ts=100.5, max_conf=0.8), b"\xff\xd8x", mark_frame=True)
+    store.record_inference(MAC, 100.5, 0.9, True, 5.0, False, _jpeg(64, 48), match_event=True)
+    store.record_inference("bbbbbbbbbbbb", 100.5, 0.9, True, 5.0, False, _jpeg(64, 48), match_event=True)
+    assert store.inferences(MAC)[0]["alerted"] == 1
+    assert store.inferences("bbbbbbbbbbbb")[0]["alerted"] == 0  # other device
+    store.close()
+
+
+def test_no_matching_without_flags(tmp_path):
+    store = EventStore(tmp_path)
+    store.record_inference(MAC, 100.5, 0.9, True, 5.0, False, _jpeg(64, 48))
+    store.record(MAC, Alert(first_seen=95.5, ts=100.5, max_conf=0.8), b"\xff\xd8x")
+    store.record_inference(MAC, 100.5, 0.9, True, 5.0, False, _jpeg(64, 48))
+    assert [r["alerted"] for r in store.inferences(MAC)] == [0, 0]
+    store.close()
+
+
+def test_duplicate_synced_event_recorded_once(tmp_path):
+    store = EventStore(tmp_path)
+    alert = Alert(first_seen=95.5, ts=100.5, max_conf=0.8)
+    p1 = store.record(MAC, alert, b"\xff\xd8x", mark_frame=True)
+    p2 = store.record(MAC, alert, b"\xff\xd8x", mark_frame=True)
+    assert p1 == p2
+    assert len(store.recent()) == 1
+    store.close()
+
+
+def test_unsynced_events_not_deduped(tmp_path):
+    store = EventStore(tmp_path)
+    alert = Alert(first_seen=95.5, ts=100.5, max_conf=0.8)
+    store.record(MAC, alert, b"\xff\xd8x", mark_frame=False)
+    store.record(MAC, alert, b"\xff\xd8x", mark_frame=False)
+    assert len(store.recent()) == 2
+    store.close()
+
+
+def test_update_device_upserts_and_keeps_missing_fields(tmp_path):
+    store = EventStore(tmp_path)
+    store.update_device(MAC, online=True, status='{"rssi":-60}', seen_ts=10.0)
+    store.update_device(MAC)  # nothing given: nothing changes
+    assert store.devices() == [{"mac": MAC, "online": 1, "status": '{"rssi":-60}', "last_seen_ts": 10.0}]
+    store.update_device(MAC, online=False)
+    store.update_device(MAC, status='{"rssi":-70}')
+    assert store.devices() == [{"mac": MAC, "online": 0, "status": '{"rssi":-70}', "last_seen_ts": 10.0}]
+    store.update_device(MAC, online=True, seen_ts=20.0)
+    assert store.devices()[0]["online"] == 1 and store.devices()[0]["last_seen_ts"] == 20.0
+    store.close()
+
+
+def test_update_device_offline_first(tmp_path):
+    store = EventStore(tmp_path)
+    store.update_device(MAC, online=False)
+    assert store.devices() == [{"mac": MAC, "online": 0, "status": None, "last_seen_ts": None}]
     store.close()

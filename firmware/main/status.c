@@ -10,6 +10,7 @@
 #include "mqtt_link.h"
 #include "net.h"
 #include "sdkconfig.h"
+#include "stream.h"
 
 static const char *TAG = "status";
 #define STATUS_PERIOD_MS 60000
@@ -33,8 +34,13 @@ static void publish_status(void)
         .uptime_s = (uint32_t)(esp_timer_get_time() / 1000000),
         .streaming = cfg.streaming,
         .fw = CONFIG_FW_VERSION,
+        .detect_ok = stream_detect_ok(),
+        .threshold = cfg.threshold,
+        .dwell_s = cfg.dwell_s,
+        .max_gap_s = cfg.max_gap_s,
+        .cooldown_s = cfg.cooldown_s,
     };
-    char buf[160];
+    char buf[256];
     int n = msg_format_status(buf, sizeof buf, &s);
     if (n < 0) {
         ESP_LOGE(TAG, "status does not fit buffer");

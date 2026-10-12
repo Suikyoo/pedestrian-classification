@@ -1,4 +1,7 @@
-# Name,   Type, SubType, Offset,  Size
-nvs,      data, nvs,     0x9000,  0x6000
-phy_init, data, phy,     0xf000,  0x1000
-factory,  app,  factory, 0x10000, 0x400000
+# Name,         Type, SubType, Offset,  Size
+nvs,            data, nvs,     0x9000,  0x6000
+phy_init,       data, phy,     0xf000,  0x1000
+factory,        app,  factory, 0x10000, 0x400000
+# INT8 pedestrian model (.espdl). `idf.py flash` writes the bundled model here;
+# replace it without rebuilding: parttool.py write_partition --partition-name pedestrian_det --input <file>.espdl
+pedestrian_det, data, spiffs,  ,        1M

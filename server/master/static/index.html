@@ -24,11 +24,9 @@
       <p class="band__time"><time id="now">--:--:--</time></p>
       <h1>Pedestrian warnings</h1>
     </div>
-    <dl class="settings" id="settings" aria-label="Alert settings">
-      <div><dt>Threshold</dt><dd id="set-threshold">–</dd></div>
-      <div><dt>Dwell</dt><dd id="set-dwell">–</dd></div>
-      <div><dt>Gap</dt><dd id="set-gap">–</dd></div>
-      <div><dt>Cooldown</dt><dd id="set-cooldown">–</dd></div>
+    <dl class="settings" id="settings" aria-label="Server settings">
+      <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
+      <div><dt>History</dt><dd id="set-history">–</dd></div>
     </dl>
     <div class="band__controls">
       <p class="link-state" id="link-state" role="status">Connecting</p>
@@ -54,14 +52,14 @@
             <th scope="col" class="col-dial"><span class="visually-hidden">Dwell dial</span></th>
             <th scope="col">Device</th>
             <th scope="col">Status</th>
-            <th scope="col" class="num">Conf.</th>
-            <th scope="col" class="num hide-sm">Last frame</th>
+            <th scope="col" class="num">Score</th>
+            <th scope="col" class="num hide-sm">Last seen</th>
             <th scope="col" class="num hide-sm">Last warning</th>
           </tr>
         </thead>
         <tbody id="devices"></tbody>
       </table>
-      <p class="empty" id="devices-empty">No devices yet. A device appears here within 2 seconds of its first frame reaching master.app.</p>
+      <p class="empty" id="devices-empty">No devices yet. A device appears here within 2 seconds of its first status message reaching master.app.</p>
     </section>
 
     <section class="pane pane--warnings" aria-labelledby="warnings-h">
@@ -74,7 +72,7 @@
             <th scope="col">Time</th>
             <th scope="col">Device</th>
             <th scope="col" class="num">Dwell</th>
-            <th scope="col" class="num hide-sm">Max conf.</th>
+            <th scope="col" class="num hide-sm">Max score</th>
             <th scope="col"><span class="visually-hidden">Snapshot</span></th>
           </tr>
         </thead>
@@ -91,7 +89,7 @@
         <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
       </div>
       <div class="strips" id="strips"></div>
-      <p class="empty" id="frames-empty" hidden>No frames yet.</p>
+      <p class="empty" id="frames-empty" hidden>No frames. Frames appear only for devices in stream mode: python -m master.cli start &lt;id&gt;.</p>
     </section>
 
   </main>

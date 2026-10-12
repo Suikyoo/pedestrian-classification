@@ -14,10 +14,8 @@ class Settings(BaseSettings):
     mqtt_pass: str = ""
     model_path: str = "yolo11n.pt"
     device: str = "cpu"
+    # YOLO cutoff for stream-mode frames. Alerts are decided on each device.
     pedestrian_conf_threshold: float = 0.6
-    alert_dwell_seconds: float = 5.0
-    max_gap_seconds: float = 3.0
-    alert_cooldown_seconds: float = 30.0
     events_dir: Path = Path("./events")
     inference_history: int = 200
     web_host: str = "0.0.0.0"

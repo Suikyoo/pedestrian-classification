@@ -5,8 +5,10 @@
 #include "cmd.h"
 #include "config_store.h"
 #include "core/proto.h"
+#include "detect.h"
 #include "esp_log.h"
 #include "esp_mac.h"
+#include "event.h"
 #include "mqtt_link.h"
 #include "net.h"
 #include "status.h"
@@ -23,6 +25,10 @@ void app_main(void)
 
     if (camera_init(&cfg) != ESP_OK) {
         ESP_LOGE(TAG, "camera unavailable; stream will retry and reboot if it keeps failing");
+    }
+    const bool detect_ready = detect_init() == ESP_OK;
+    if (!detect_ready) {
+        ESP_LOGE(TAG, "pedestrian detection unavailable: no local alerts until the model is flashed");
     }
     ESP_ERROR_CHECK(audio_init());
     audio_set_volume(cfg.volume);
@@ -43,8 +49,10 @@ void app_main(void)
     const mqtt_link_handlers_t handlers = {
         .on_message = cmd_submit,
         .on_connected = status_request,
+        .on_published = event_on_published,
     };
     ESP_ERROR_CHECK(mqtt_link_start(id, &handlers));
-    ESP_ERROR_CHECK(stream_start());
+    ESP_ERROR_CHECK(event_start());
+    ESP_ERROR_CHECK(stream_start(detect_ready));
     ESP_LOGI(TAG, "running as %s", id);
 }

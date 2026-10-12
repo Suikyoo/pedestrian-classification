@@ -4,12 +4,13 @@
 const POLL_MS = 2000;
 const WARNINGS_MS = 5000;
 const STALE_S = 10;
+const STATUS_STALE_S = 150; // devices send status every 60 s
 const FRAMES_PER_DEVICE = 48; // the strip shows one row of these; the selected device shows all
 const SVG_NS = "http://www.w3.org/2000/svg";
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const state = {
-  cfg: { threshold: 0.6, dwell_s: 5, max_gap_s: 3, cooldown_s: 30, history: 200 },
+  cfg: { threshold: 0.6, history: 200 },
   cfgLoaded: false,
   selected: "",
   lastId: 0,
@@ -50,6 +51,7 @@ const timeFmt = new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit"
 const clock = (ts) => timeFmt.format(new Date(ts * 1000));
 const secs = (s) => `${s.toFixed(1)} s`;
 const conf = (c) => c.toFixed(2);
+const score = (s) => (s == null ? "–" : s.toFixed(2));
 
 /* ---------- connection state ---------- */
 
@@ -114,22 +116,28 @@ async function loadConfig() {
   state.cfg = cfg;
   state.cfgLoaded = true;
   $("#set-threshold").textContent = cfg.threshold.toFixed(2);
-  $("#set-dwell").textContent = `${cfg.dwell_s} s`;
-  $("#set-gap").textContent = `${cfg.max_gap_s} s`;
-  $("#set-cooldown").textContent = `${cfg.cooldown_s} s`;
+  $("#set-history").textContent = String(cfg.history);
 }
 
 /* ---------- devices timetable ---------- */
 
+// Devices decide warnings themselves. Frames (and so "Pedestrian") exist only in stream mode.
 function deviceState(d, nowS) {
-  if (nowS - d.last_ts > STALE_S) return { kind: "nosignal", label: "No signal", detail: "", rank: 3 };
-  if (d.last_positive && d.last_dwell_s >= state.cfg.dwell_s) {
-    return { kind: "warning", label: "Warning", detail: secs(d.last_dwell_s), rank: 0 };
+  if (!d.online) return { kind: "nosignal", label: "Offline", detail: "", rank: 3 };
+  if (d.last_seen_ts == null || nowS - d.last_seen_ts > STATUS_STALE_S) {
+    return { kind: "nosignal", label: "No signal", detail: "", rank: 3 };
   }
-  if (d.last_positive) {
-    return { kind: "pedestrian", label: "Pedestrian", detail: `${secs(d.last_dwell_s)} of ${state.cfg.dwell_s} s`, rank: 1 };
+  if (d.detect_ok === false) return { kind: "nosignal", label: "Detector fault", detail: "", rank: 3 };
+  const cooldown = d.cooldown_s ?? 30;
+  if (d.last_warning_ts != null && nowS - d.last_warning_ts < Math.max(cooldown, STALE_S)) {
+    return { kind: "warning", label: "Warning", detail: clock(d.last_warning_ts), rank: 0 };
   }
-  return { kind: "clear", label: "Clear", detail: "", rank: 2 };
+  const fresh = d.last_ts != null && nowS - d.last_ts <= STALE_S;
+  if (fresh && d.last_device_score != null && d.threshold != null && d.last_device_score >= d.threshold) {
+    const limit = d.dwell_s == null ? "" : ` of ${d.dwell_s} s`;
+    return { kind: "pedestrian", label: "Pedestrian", detail: `${secs(d.last_dwell_s ?? 0)}${limit}`, rank: 1 };
+  }
+  return { kind: "clear", label: "Clear", detail: d.streaming ? "streaming" : "", rank: 2 };
 }
 
 function buildDial() {
@@ -142,8 +150,8 @@ function buildDial() {
   return { dial, ticks, hand, tickCount: -1, fraction: 0 };
 }
 
-function updateDial(parts, kind, dwell) {
-  const count = Math.max(1, Math.min(12, Math.round(state.cfg.dwell_s)));
+function updateDial(parts, kind, dwell, limit) {
+  const count = Math.max(1, Math.min(12, Math.round(limit || 1)));
   if (parts.tickCount !== count) {
     parts.ticks.replaceChildren();
     // Tick 0 (at 12 o'clock) marks the dwell limit, where a warning fires.
@@ -151,7 +159,8 @@ function updateDial(parts, kind, dwell) {
     parts.tickCount = count;
   }
   parts.dial.dataset.kind = kind;
-  const fraction = kind === "pedestrian" ? Math.min(dwell / state.cfg.dwell_s, 1) : kind === "warning" ? 1 : 0;
+  const progress = limit > 0 ? Math.min(dwell / limit, 1) : 1;
+  const fraction = kind === "pedestrian" ? progress : kind === "warning" ? 1 : 0;
   // A station hand never runs backwards: sweep forward, snap back to 12 on reset.
   const snapping = fraction < parts.fraction;
   parts.hand.classList.toggle("is-snapping", snapping);
@@ -186,14 +195,15 @@ function buildRow(mac) {
   button.setAttribute("aria-pressed", "false");
   button.setAttribute("aria-label", `Show only frames from device ${mac}`);
   button.addEventListener("click", (e) => { e.stopPropagation(); selectDevice(mac); });
-  tdDevice.append(button);
+  const settings = el("span", "status__detail", "settings unknown");
+  tdDevice.append(button, settings);
   const tdStatus = el("td");
   const tdConf = el("td", "num");
   const tdLast = el("td", "num hide-sm");
   const tdWarn = el("td", "num hide-sm");
   tr.append(tdDial, tdDevice, tdStatus, tdConf, tdLast, tdWarn);
   tr.addEventListener("click", () => selectDevice(mac));
-  return { tr, button, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
+  return { tr, button, settings, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
 }
 
 function statusNode(st) {
@@ -210,7 +220,7 @@ function renderDevices(devices) {
   const nowS = Date.now() / 1000;
   const tbody = $("#devices");
   const decorated = devices.map((d) => ({ d, st: deviceState(d, nowS) }));
-  decorated.sort((a, b) => a.st.rank - b.st.rank || b.d.last_dwell_s - a.d.last_dwell_s || a.d.mac.localeCompare(b.d.mac));
+  decorated.sort((a, b) => a.st.rank - b.st.rank || (b.d.last_dwell_s ?? 0) - (a.d.last_dwell_s ?? 0) || a.d.mac.localeCompare(b.d.mac));
 
   const present = new Set();
   for (const { d, st } of decorated) {
@@ -223,11 +233,14 @@ function renderDevices(devices) {
       parts.tr.classList.toggle("is-selected", on);
       parts.button.setAttribute("aria-pressed", String(on));
     }
-    updateDial(parts, st.kind, d.last_dwell_s);
+    updateDial(parts, st.kind, d.last_dwell_s ?? 0, d.dwell_s ?? 0);
     parts.tr.classList.toggle("is-warning", st.kind === "warning");
+    parts.settings.textContent = d.threshold == null && d.dwell_s == null
+      ? "settings unknown"
+      : `\u2265 ${d.threshold == null ? "\u2013" : d.threshold.toFixed(2)} \u00b7 ${d.dwell_s == null ? "\u2013" : d.dwell_s} s`;
     parts.tdStatus.replaceChildren(statusNode(st));
-    parts.tdConf.textContent = conf(d.last_conf);
-    parts.tdLast.textContent = clock(d.last_ts);
+    parts.tdConf.textContent = score(d.last_device_score);
+    parts.tdLast.textContent = d.last_seen_ts == null ? "–" : clock(d.last_seen_ts);
     parts.tdWarn.textContent = d.last_warning_ts ? clock(d.last_warning_ts) : "–";
     tbody.append(parts.tr); // moves existing rows into sorted order
   }
@@ -262,7 +275,7 @@ function frameItem(r, img) {
     stamp.append(warnIcon(), document.createTextNode("Warning"));
     button.append(stamp);
   }
-  const caption = `${r.mac} · ${clock(r.ts)} · confidence ${conf(r.conf)}`;
+  const caption = `${r.mac} · ${clock(r.ts)} · YOLO ${conf(r.conf)} · device ${score(r.device_score)}`;
   button.addEventListener("click", () => openViewer(r.thumb_url, caption));
   li.append(button);
 
@@ -273,7 +286,7 @@ function frameItem(r, img) {
   fill.style.width = `${Math.round(Math.min(1, Math.max(0, r.conf)) * 100)}%`;
   bar.append(fill);
   meta.append(bar);
-  const statusText = r.positive ? `Pedestrian · ${secs(r.dwell_s)}` : "Clear";
+  const statusText = `${r.positive ? `Pedestrian · ${secs(r.dwell_s)}` : "Clear"} · device ${score(r.device_score)}`;
   meta.append(el("span", `frame__status${r.positive ? " frame__status--pedestrian" : ""}`, statusText));
   li.append(meta);
   return li;
@@ -343,6 +356,7 @@ async function renderStrips(decorated) {
   const present = new Set();
   const backfills = [];
   for (const { d, st } of decorated) {
+    if (!d.count) continue; // not streaming: no frames to show
     present.add(d.mac);
     let strip = state.strips.get(d.mac);
     if (!strip) {

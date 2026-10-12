@@ -54,6 +54,14 @@ static void on_event(void *arg, esp_event_base_t base, int32_t event_id, void *e
             s_handlers.on_message(kind, e->data, (size_t)e->data_len);
         }
         break;
+    case MQTT_EVENT_PUBLISHED:
+        if (s_handlers.on_published) {
+            s_handlers.on_published(e->msg_id);
+        }
+        break;
+    case MQTT_EVENT_DELETED:
+        ESP_LOGW(TAG, "outbox entry %d expired", e->msg_id);
+        break;
     case MQTT_EVENT_ERROR:
         ESP_LOGW(TAG, "transport error");
         break;
