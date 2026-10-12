@@ -123,8 +123,9 @@ static void stream_task(void *arg)
     }
 }
 
-esp_err_t stream_start(void)
+esp_err_t stream_start(bool detect_ready)
 {
+    s_detect_ok = detect_ready;
     /* ESP-DL inference runs on this task: give it a larger stack. */
     return xTaskCreate(stream_task, "stream", 16384, NULL, 4, NULL) == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }

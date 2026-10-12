@@ -85,5 +85,5 @@ float detect_score(const uint8_t *jpeg, size_t len)
         ESP_LOGI(TAG, "%dx%d: decode %d ms, inference %d ms, score %.2f", img.width, img.height,
                  (int)((t1 - t0) / 1000), (int)((t2 - t1) / 1000), best);
     }
-    return best;
+    return best > 1.0f ? 1.0f : best;
 }

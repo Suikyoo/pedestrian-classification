@@ -178,6 +178,7 @@ These are the spots the code review could not confirm without a compiler:
 | `Failed to resolve component 'espressif/pedestrian_detect'` | Run `idf.py add-dependency "espressif/pedestrian_detect"` with internet access, then build. |
 | `pedestrian_det partition is empty` at boot | The model was not flashed. Run `idf.py flash` (not `app-flash`). |
 | `detect: ... inference` well above 250 ms | Check that `sdkconfig` has `CONFIG_COMPILER_OPTIMIZATION_PERF=y` and 64 KB data cache; delete `sdkconfig` and rebuild if it came from older defaults. |
+| `detect_ok:false` or slow detection after choosing `frame_size` above VGA | Detection decodes the full frame into PSRAM (SXGA/UXGA need 4-6 MB and take much longer). Keep `frame_size` at VGA or below while alerts matter. |
 | Watchdog reboots during large frame uploads | Lower `frame_size` or raise `jpeg_quality` with `python -m master.cli config <id> ...`. |
 
 ## Alert sound

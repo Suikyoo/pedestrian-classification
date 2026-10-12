@@ -26,7 +26,8 @@ void app_main(void)
     if (camera_init(&cfg) != ESP_OK) {
         ESP_LOGE(TAG, "camera unavailable; stream will retry and reboot if it keeps failing");
     }
-    if (detect_init() != ESP_OK) {
+    const bool detect_ready = detect_init() == ESP_OK;
+    if (!detect_ready) {
         ESP_LOGE(TAG, "pedestrian detection unavailable: no local alerts until the model is flashed");
     }
     ESP_ERROR_CHECK(audio_init());
@@ -52,6 +53,6 @@ void app_main(void)
     };
     ESP_ERROR_CHECK(mqtt_link_start(id, &handlers));
     ESP_ERROR_CHECK(event_start());
-    ESP_ERROR_CHECK(stream_start());
+    ESP_ERROR_CHECK(stream_start(detect_ready));
     ESP_LOGI(TAG, "running as %s", id);
 }

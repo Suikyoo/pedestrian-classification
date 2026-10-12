@@ -5,11 +5,14 @@ import time
 
 import paho.mqtt.client as mqtt
 import pytest
+from fastapi.testclient import TestClient
 from PIL import Image
 
 from master import protocol
 from master.app import MasterApp, connect
 from master.events import EventStore
+from master.settings import Settings
+from master.web import create_app
 
 pytestmark = pytest.mark.integration
 
@@ -73,4 +76,8 @@ def test_device_event_recorded_and_master_never_alerts(tmp_path):
     assert row["mac"] == MAC and row["dwell_s"] == 5.0 and row["max_conf"] == 0.9
     [frame] = store.inferences(MAC)
     assert frame["alerted"] == 1 and frame["device_score"] == 0.9
+
+    api = TestClient(create_app(Settings(_env_file=None, events_dir=tmp_path / "events")))
+    rows = [r for r in api.get("/api/alerts").json() if r["mac"] == MAC]
+    assert len(rows) == 1 and rows[0]["snapshot_url"] is not None
     store.close()

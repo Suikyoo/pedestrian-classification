@@ -195,14 +195,15 @@ function buildRow(mac) {
   button.setAttribute("aria-pressed", "false");
   button.setAttribute("aria-label", `Show only frames from device ${mac}`);
   button.addEventListener("click", (e) => { e.stopPropagation(); selectDevice(mac); });
-  tdDevice.append(button);
+  const settings = el("span", "status__detail", "settings unknown");
+  tdDevice.append(button, settings);
   const tdStatus = el("td");
   const tdConf = el("td", "num");
   const tdLast = el("td", "num hide-sm");
   const tdWarn = el("td", "num hide-sm");
   tr.append(tdDial, tdDevice, tdStatus, tdConf, tdLast, tdWarn);
   tr.addEventListener("click", () => selectDevice(mac));
-  return { tr, button, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
+  return { tr, button, settings, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
 }
 
 function statusNode(st) {
@@ -234,6 +235,9 @@ function renderDevices(devices) {
     }
     updateDial(parts, st.kind, d.last_dwell_s ?? 0, d.dwell_s ?? 0);
     parts.tr.classList.toggle("is-warning", st.kind === "warning");
+    parts.settings.textContent = d.threshold == null && d.dwell_s == null
+      ? "settings unknown"
+      : `\u2265 ${d.threshold == null ? "\u2013" : d.threshold.toFixed(2)} \u00b7 ${d.dwell_s == null ? "\u2013" : d.dwell_s} s`;
     parts.tdStatus.replaceChildren(statusNode(st));
     parts.tdConf.textContent = score(d.last_device_score);
     parts.tdLast.textContent = d.last_seen_ts == null ? "–" : clock(d.last_seen_ts);
