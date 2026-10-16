@@ -16,6 +16,7 @@
 #include "event.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "led.h"
 #include "mqtt_link.h"
 #include "status.h"
 #include "timesync.h"
@@ -90,9 +91,11 @@ static void process_frame(const devcfg_t *cfg)
     dwell_params_t p;
     dwell_params_from_cfg(&p, cfg);
     dwell_alert_t alert;
+    led_person(score >= p.threshold);
     if (dwell_update(&s_dwell, &p, esp_timer_get_time() / 1000, score, &alert)) {
         ESP_LOGI(TAG, "ALERT dwell=%u ms max_score=%.2f",
                  (unsigned)(alert.alert_ms - alert.first_seen_ms), alert.max_score);
+        led_alert();
         audio_play(1);
         event_raise(&alert, capture_ms, fb->buf, fb->len);
     }

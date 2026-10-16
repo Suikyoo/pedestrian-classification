@@ -23,6 +23,9 @@
 /* PWM into the RC filter and PAM8403. Free of camera, SD (38-40), RGB LED (48), USB (19/20). */
 #define BOARD_AUDIO_GPIO 14
 
+/* On-board WS2812 RGB LED. */
+#define BOARD_LED_GPIO 48
+
 /* No battery sense on this board. */
 static inline int board_battery_mv(void)
 {

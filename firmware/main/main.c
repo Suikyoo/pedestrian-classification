@@ -9,6 +9,7 @@
 #include "esp_log.h"
 #include "esp_mac.h"
 #include "event.h"
+#include "led.h"
 #include "mqtt_link.h"
 #include "net.h"
 #include "status.h"
@@ -32,6 +33,7 @@ void app_main(void)
     }
     ESP_ERROR_CHECK(audio_init());
     audio_set_volume(cfg.volume);
+    led_init(); /* optional: logs a warning and the firmware runs without it */
 
     ESP_ERROR_CHECK(net_start());
     while (!net_wait_connected(pdMS_TO_TICKS(30000))) {

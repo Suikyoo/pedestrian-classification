@@ -7,6 +7,7 @@ set(srcs
     "camera.c"
     "stream.c"
     "audio.c"
+    "led.c"
     "status.c"
     "detect.cpp"
     "event.c")
