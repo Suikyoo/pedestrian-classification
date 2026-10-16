@@ -3,6 +3,9 @@ CONFIG_IDF_TARGET="esp32s3"
 # Freenove ESP32-S3-WROOM CAM: N8R8 (8 MB flash, 8 MB octal PSRAM).
 # For an N16R8 module, use CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y instead.
 CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+# QIO, not DIO: in DIO mode the first write to octal PSRAM leaves later flash reads
+# returning 0xFF, so the app hangs or panics during startup.
+CONFIG_ESPTOOLPY_FLASHMODE_QIO=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
 
