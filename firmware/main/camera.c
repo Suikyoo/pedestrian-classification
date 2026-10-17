@@ -8,6 +8,22 @@
 static const char *TAG = "camera";
 static SemaphoreHandle_t s_lock;
 
+/* The OV5640 runs hot when it streams nonstop, and this board has no PWDN pin, so
+ * the sensor sits in software standby between captures. Frames already queued
+ * before standby, or cut off by it, are dropped after waking. */
+#define OV5640_SYSTEM_CTRL0 0x3008
+#define OV5640_STANDBY_BIT 0x40
+#define WAKE_DISCARD_FRAMES 3
+static bool s_standby;
+
+static void sensor_standby(bool on)
+{
+    sensor_t *s = esp_camera_sensor_get();
+    if (s_standby && s != NULL) {
+        s->set_reg(s, OV5640_SYSTEM_CTRL0, OV5640_STANDBY_BIT, on ? OV5640_STANDBY_BIT : 0);
+    }
+}
+
 static framesize_t to_framesize(devcfg_frame_t f)
 {
     switch (f) {
@@ -60,6 +76,8 @@ static esp_err_t init_locked(const devcfg_t *c)
     sensor_t *s = esp_camera_sensor_get();
     s->set_framesize(s, to_framesize(c->frame_size));
     s->set_quality(s, c->jpeg_quality);
+    s_standby = s->id.PID == OV5640_PID;
+    sensor_standby(true);
     return ESP_OK;
 }
 
@@ -98,8 +116,16 @@ esp_err_t camera_reinit(const devcfg_t *c)
 camera_fb_t *camera_capture(void)
 {
     xSemaphoreTake(s_lock, portMAX_DELAY);
+    sensor_standby(false);
+    for (int i = 0; s_standby && i < WAKE_DISCARD_FRAMES; i++) {
+        camera_fb_t *stale = esp_camera_fb_get();
+        if (stale != NULL) {
+            esp_camera_fb_return(stale);
+        }
+    }
     camera_fb_t *fb = esp_camera_fb_get();
     if (fb == NULL) {
+        sensor_standby(true);
         xSemaphoreGive(s_lock);
     }
     return fb; /* lock is held until camera_return */
@@ -108,5 +134,6 @@ camera_fb_t *camera_capture(void)
 void camera_return(camera_fb_t *fb)
 {
     esp_camera_fb_return(fb);
+    sensor_standby(true);
     xSemaphoreGive(s_lock);
 }
