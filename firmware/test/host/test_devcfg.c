@@ -16,6 +16,7 @@ static void test_defaults(void)
     CHECK(c.dwell_s == 5.0f);
     CHECK(c.max_gap_s == 3.0f);
     CHECK(c.cooldown_s == 30.0f);
+    CHECK_INT(c.rotation, 0);
 }
 
 static void test_partial_update_keeps_other_fields(void)
@@ -85,6 +86,12 @@ static void test_invalid_rejects_whole_update(void)
         "{\"cooldown_s\":3601}",
         "{\"cooldown_s\":-0.5}",
         "{\"volume\":50,\"threshold\":2}",
+        "{\"rotation\":90}",
+        "{\"rotation\":270}",
+        "{\"rotation\":-180}",
+        "{\"rotation\":180.5}",
+        "{\"rotation\":\"180\"}",
+        "{\"rotation\":true}",
         "{",
         "[1]",
         "0",
@@ -228,6 +235,25 @@ static void test_equal_covers_detection_fields(void)
     CHECK(!devcfg_equal(&a, &b));
 }
 
+static void test_rotation(void)
+{
+    devcfg_t c, before;
+    devcfg_defaults(&c);
+    CHECK(devcfg_apply_json(&c, J("{\"rotation\":180}")));
+    CHECK_INT(c.rotation, 180);
+    CHECK_INT(c.volume, 80); /* untouched */
+    CHECK(devcfg_valid(&c));
+    CHECK(devcfg_apply_json(&c, J("{\"rotation\":0}")));
+    CHECK_INT(c.rotation, 0);
+
+    devcfg_defaults(&before);
+    c = before;
+    c.rotation = 180;
+    CHECK(!devcfg_equal(&c, &before));
+    c.rotation = 90;
+    CHECK(!devcfg_valid(&c));
+}
+
 void test_devcfg(void)
 {
     test_defaults();
@@ -244,4 +270,5 @@ void test_devcfg(void)
     test_detection_bounds_accepted();
     test_detection_fields_valid();
     test_equal_covers_detection_fields();
+    test_rotation();
 }

@@ -13,13 +13,15 @@ SCORE_FAILED = 0xFFFF
 EVENT_JSON_LEN = struct.Struct("<H")
 
 FRAME_SIZES = ("QVGA", "VGA", "SVGA", "XGA", "HD", "SXGA", "UXGA")
+# The device flips its sensor; it cannot turn the image by 90 degrees.
+ROTATIONS = (0, 180)
 ACTIONS = ("start", "stop", "reboot", "status")
 DEFAULT_CONFIG = {
     "interval_ms": 1000, "jpeg_quality": 12, "frame_size": "VGA", "volume": 80,
-    "threshold": 0.6, "dwell_s": 5.0, "max_gap_s": 3.0, "cooldown_s": 30.0,
+    "threshold": 0.6, "dwell_s": 5.0, "max_gap_s": 3.0, "cooldown_s": 30.0, "rotation": 0,
 }
 
-# Integer fields -> (min, max), inclusive. frame_size is checked separately.
+# Integer fields -> (min, max), inclusive. frame_size and rotation are checked separately.
 _INT_FIELDS = {
     "interval_ms": (100, 3_600_000),
     "jpeg_quality": (0, 63),
@@ -150,6 +152,9 @@ def validate_config(cfg: dict) -> dict:
         if key == "frame_size":
             if value not in FRAME_SIZES:
                 raise ProtocolError(f"frame_size must be one of {FRAME_SIZES}, got {value!r}")
+        elif key == "rotation":
+            if isinstance(value, bool) or value not in ROTATIONS:
+                raise ProtocolError(f"rotation must be one of {ROTATIONS}, got {value!r}")
         elif key in _INT_FIELDS:
             lo, hi = _INT_FIELDS[key]
             if not isinstance(value, int) or isinstance(value, bool):
@@ -174,7 +179,7 @@ def parse_config_args(args: list[str]) -> dict:
         key, sep, raw = arg.partition("=")
         if not sep or not key:
             raise ProtocolError(f"expected key=value, got {arg!r}")
-        if key in _INT_FIELDS:
+        if key in _INT_FIELDS or key == "rotation":
             try:
                 out[key] = int(raw)
             except ValueError:

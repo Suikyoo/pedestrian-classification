@@ -69,7 +69,8 @@ python -m master.cli config <mac> interval_ms=500 volume=60
 
 `config` merges the given fields into the device's current retained config.
 Fields: `interval_ms` (100–3600000), `jpeg_quality` (0–63, lower = better),
-`frame_size` (QVGA, VGA, SVGA, XGA, HD, SXGA, UXGA), `volume` (0–100).
+`frame_size` (QVGA, VGA, SVGA, XGA, HD, SXGA, UXGA), `volume` (0–100),
+`rotation` (0 or 180; the sensor flips the image, so 90 is not possible).
 
 ## Test
 

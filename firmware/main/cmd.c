@@ -57,17 +57,18 @@ static void handle_config(const char *data, size_t len)
         return;
     }
     config_store_set(&next);
-    if (next.frame_size != cur.frame_size || next.jpeg_quality != cur.jpeg_quality) {
+    if (next.frame_size != cur.frame_size || next.jpeg_quality != cur.jpeg_quality ||
+        next.rotation != cur.rotation) {
         esp_err_t err = camera_apply(&next);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "camera did not accept frame size/quality: %s", esp_err_to_name(err));
+            ESP_LOGE(TAG, "camera did not accept frame size/quality/rotation: %s", esp_err_to_name(err));
         }
     }
     audio_set_volume(next.volume);
-    ESP_LOGI(TAG, "config: interval_ms=%lu quality=%u frame=%s volume=%u threshold=%.2f "
+    ESP_LOGI(TAG, "config: interval_ms=%lu quality=%u frame=%s rotation=%u volume=%u threshold=%.2f "
                   "dwell=%.1fs gap=%.1fs cooldown=%.0fs",
              (unsigned long)next.interval_ms, next.jpeg_quality,
-             devcfg_frame_name(next.frame_size), next.volume, next.threshold,
+             devcfg_frame_name(next.frame_size), next.rotation, next.volume, next.threshold,
              next.dwell_s, next.max_gap_s, next.cooldown_s);
     status_request(); /* report the new active settings right away */
 }

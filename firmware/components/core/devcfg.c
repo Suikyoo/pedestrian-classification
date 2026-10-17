@@ -19,6 +19,7 @@ void devcfg_defaults(devcfg_t *c)
     c->dwell_s = 5.0f;
     c->max_gap_s = 3.0f;
     c->cooldown_s = 30.0f;
+    c->rotation = 0;
 }
 
 bool devcfg_equal(const devcfg_t *a, const devcfg_t *b)
@@ -27,7 +28,7 @@ bool devcfg_equal(const devcfg_t *a, const devcfg_t *b)
            a->frame_size == b->frame_size && a->volume == b->volume &&
            a->streaming == b->streaming && a->threshold == b->threshold &&
            a->dwell_s == b->dwell_s && a->max_gap_s == b->max_gap_s &&
-           a->cooldown_s == b->cooldown_s;
+           a->cooldown_s == b->cooldown_s && a->rotation == b->rotation;
 }
 
 const char *devcfg_frame_name(devcfg_frame_t f)
@@ -109,6 +110,11 @@ bool devcfg_apply_json(devcfg_t *c, const char *json, size_t len)
     if (ok && present) {
         next.volume = (uint8_t)v;
     }
+    /* Only 0 and 180: the sensor can flip, not turn by 90 degrees. */
+    ok = ok && read_int(root, "rotation", 0, 180, &present, &v) && (!present || v == 0 || v == 180);
+    if (ok && present) {
+        next.rotation = (uint16_t)v;
+    }
     float f = 0.0f;
     ok = ok && read_float(root, "threshold", 0.05, 0.99, &present, &f);
     if (ok && present) {
@@ -147,5 +153,6 @@ bool devcfg_valid(const devcfg_t *c)
            c->threshold >= 0.05f && c->threshold <= 0.99f &&
            c->dwell_s >= 0.0f && c->dwell_s <= 600.0f &&
            c->max_gap_s >= 0.5f && c->max_gap_s <= 60.0f &&
-           c->cooldown_s >= 0.0f && c->cooldown_s <= 3600.0f;
+           c->cooldown_s >= 0.0f && c->cooldown_s <= 3600.0f &&
+           (c->rotation == 0 || c->rotation == 180);
 }

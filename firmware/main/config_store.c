@@ -8,12 +8,63 @@
 
 static const char *TAG = "config_store";
 static const char *NS = "edge";
-/* "devcfg2": devcfg_t gained the detection fields. A blob under the old key has
- * the old layout and is ignored, so such a device starts from the defaults. */
-static const char *KEY = "devcfg2";
+/* "devcfg3": devcfg_t gained rotation. A "devcfg2" blob (before rotation) is
+ * migrated once; older layouts are ignored, so such a device starts from the defaults. */
+static const char *KEY = "devcfg3";
+static const char *KEY_V2 = "devcfg2";
+
+/* devcfg_t as stored under "devcfg2". */
+typedef struct {
+    uint32_t interval_ms;
+    uint8_t jpeg_quality;
+    devcfg_frame_t frame_size;
+    uint8_t volume;
+    bool streaming;
+    float threshold;
+    float dwell_s;
+    float max_gap_s;
+    float cooldown_s;
+} devcfg_v2_t;
+
+static bool load_v2(nvs_handle_t h, devcfg_t *out)
+{
+    devcfg_v2_t old;
+    size_t size = sizeof old;
+    if (nvs_get_blob(h, KEY_V2, &old, &size) != ESP_OK || size != sizeof old) {
+        return false;
+    }
+    devcfg_defaults(out);
+    out->interval_ms = old.interval_ms;
+    out->jpeg_quality = old.jpeg_quality;
+    out->frame_size = old.frame_size;
+    out->volume = old.volume;
+    out->streaming = old.streaming;
+    out->threshold = old.threshold;
+    out->dwell_s = old.dwell_s;
+    out->max_gap_s = old.max_gap_s;
+    out->cooldown_s = old.cooldown_s;
+    return devcfg_valid(out);
+}
 
 static devcfg_t s_cfg;
 static SemaphoreHandle_t s_lock;
+
+static esp_err_t save(const devcfg_t *c)
+{
+    nvs_handle_t h;
+    esp_err_t err = nvs_open(NS, NVS_READWRITE, &h);
+    if (err == ESP_OK) {
+        err = nvs_set_blob(h, KEY, c, sizeof *c);
+        if (err == ESP_OK) {
+            err = nvs_commit(h);
+        }
+        nvs_close(h);
+    }
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "saving config failed: %s", esp_err_to_name(err));
+    }
+    return err;
+}
 
 esp_err_t config_store_init(void)
 {
@@ -29,6 +80,7 @@ esp_err_t config_store_init(void)
     devcfg_defaults(&s_cfg);
 
     nvs_handle_t h;
+    bool migrated = false;
     if (nvs_open(NS, NVS_READONLY, &h) == ESP_OK) {
         devcfg_t stored;
         size_t size = sizeof stored;
@@ -38,8 +90,15 @@ esp_err_t config_store_init(void)
             ESP_LOGI(TAG, "loaded config from NVS");
         } else if (gerr == ESP_OK) {
             ESP_LOGW(TAG, "stored config invalid, using defaults");
+        } else if (load_v2(h, &stored)) {
+            s_cfg = stored;
+            migrated = true;
+            ESP_LOGI(TAG, "migrated config from %s", KEY_V2);
         }
         nvs_close(h);
+    }
+    if (migrated) {
+        save(&s_cfg);
     }
     return ESP_OK;
 }
@@ -60,18 +119,5 @@ esp_err_t config_store_set(const devcfg_t *c)
     if (!changed) {
         return ESP_OK; /* avoid flash wear on redelivered retained config */
     }
-
-    nvs_handle_t h;
-    esp_err_t err = nvs_open(NS, NVS_READWRITE, &h);
-    if (err == ESP_OK) {
-        err = nvs_set_blob(h, KEY, c, sizeof *c);
-        if (err == ESP_OK) {
-            err = nvs_commit(h);
-        }
-        nvs_close(h);
-    }
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "saving config failed: %s", esp_err_to_name(err));
-    }
-    return err;
+    return save(c);
 }

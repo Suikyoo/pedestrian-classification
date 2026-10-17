@@ -158,6 +158,10 @@ def test_validate_config_accepts_detection_bounds():
         {"dwell_s": 601},
         {"max_gap_s": 0.4},
         {"cooldown_s": -1},
+        {"rotation": 90},
+        {"rotation": 270},
+        {"rotation": "180"},
+        {"rotation": True},
     ],
 )
 def test_validate_config_rejects(cfg):
@@ -171,6 +175,13 @@ def test_parse_config_args_converts_types():
         "frame_size": "SVGA",
         "volume": 60,
     }
+
+
+def test_rotation_accepts_0_and_180():
+    assert p.parse_config_args(["rotation=180"]) == {"rotation": 180}
+    assert p.validate_config({"rotation": 0}) == {"rotation": 0}
+    with pytest.raises(p.ProtocolError):
+        p.parse_config_args(["rotation=90"])
 
 
 def test_parse_config_args_converts_floats():

@@ -38,6 +38,15 @@ static framesize_t to_framesize(devcfg_frame_t f)
     }
 }
 
+/* 180 degrees = vertical flip + horizontal mirror, done in the sensor for free. */
+static int set_rotation(sensor_t *s, uint16_t rotation)
+{
+    int on = rotation == 180;
+    int a = s->set_vflip(s, on);
+    int b = s->set_hmirror(s, on);
+    return a == 0 && b == 0 ? 0 : -1;
+}
+
 static esp_err_t init_locked(const devcfg_t *c)
 {
     camera_config_t cfg = {
@@ -76,6 +85,7 @@ static esp_err_t init_locked(const devcfg_t *c)
     sensor_t *s = esp_camera_sensor_get();
     s->set_framesize(s, to_framesize(c->frame_size));
     s->set_quality(s, c->jpeg_quality);
+    set_rotation(s, c->rotation);
     s_standby = s->id.PID == OV5640_PID;
     sensor_standby(true);
     return ESP_OK;
@@ -98,7 +108,8 @@ esp_err_t camera_apply(const devcfg_t *c)
     if (s != NULL) {
         int a = s->set_framesize(s, to_framesize(c->frame_size));
         int b = s->set_quality(s, c->jpeg_quality);
-        err = (a == 0 && b == 0) ? ESP_OK : ESP_FAIL;
+        int r = set_rotation(s, c->rotation);
+        err = (a == 0 && b == 0 && r == 0) ? ESP_OK : ESP_FAIL;
     }
     xSemaphoreGive(s_lock);
     return err;

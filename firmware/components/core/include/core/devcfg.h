@@ -25,6 +25,7 @@ typedef struct {
     float dwell_s;            /* 0..600: positive run length before an alert */
     float max_gap_s;          /* 0.5..60: no positive frame for longer ends the run */
     float cooldown_s;         /* 0..3600: minimum time between alerts */
+    uint16_t rotation;        /* 0 or 180: image rotation, done by flipping the sensor */
 } devcfg_t;
 
 void devcfg_defaults(devcfg_t *c);
