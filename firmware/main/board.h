@@ -1,7 +1,7 @@
 #pragma once
 #include "sdkconfig.h"
 
-/* The only place that knows which board is in use. Pins live in boards/*.h. */
+/* The only place that knows which board is in use. Pins live in boards/<name>.h. */
 #if CONFIG_BOARD_FREENOVE_S3CAM
 #include "boards/freenove_s3cam.h"
 #else

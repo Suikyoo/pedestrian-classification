@@ -62,9 +62,9 @@ This creates `sdkconfig` from `sdkconfig.defaults` (PSRAM, flash size, partition
 table, TLS bundle, watchdog). `sdkconfig` is machine-local and git-ignored.
 Running `set-target` again deletes `sdkconfig` and starts from the defaults.
 
-Flash size: the defaults assume a Freenove **N8R8** module (8 MB flash, 8 MB
-PSRAM; the module marking is printed on its metal shield). For **N16R8**, change
-`CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` to `CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` in
+Flash size: the defaults assume a Freenove **N16R8** module (16 MB flash, 8 MB
+PSRAM; the module marking is printed on its metal shield). For **N8R8**, change
+`CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y` to `CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y` in
 `sdkconfig.defaults` before `set-target`, or set it in menuconfig under
 *Serial flasher config → Flash size*.
 
