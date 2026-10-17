@@ -1,128 +1,156 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-10-06T00:00:00Z",
+  "generatedAt": "2026-10-18T00:00:00Z",
   "title": "Design System: Pedestrian Warnings Dashboard",
   "extensions": {
     "colorMeta": {
-      "ground": { "role": "neutral", "displayName": "Night Ground", "canonical": "#121417", "tonalRamp": ["#0a0b0d", "#121417", "#1a1d21", "#22262b", "#2c3036", "#585d64", "#9aa0a7", "#ecece8"] },
-      "panel": { "role": "neutral", "displayName": "Panel", "canonical": "#1a1d21", "tonalRamp": ["#0e1012", "#121417", "#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#585d64", "#858b92"] },
-      "panel-raised": { "role": "neutral", "displayName": "Raised Panel", "canonical": "#22262b", "tonalRamp": ["#121417", "#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#585d64", "#858b92", "#9aa0a7"] },
-      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#2c3036", "tonalRamp": ["#1a1d21", "#22262b", "#2c3036", "#3a3f46", "#4a4f56", "#585d64", "#858b92", "#9aa0a7"] },
-      "text": { "role": "neutral", "displayName": "Text", "canonical": "#ecece8", "tonalRamp": ["#585d64", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd0cf", "#dcdcd8", "#ecece8", "#f6f6f3"] },
-      "muted": { "role": "neutral", "displayName": "Muted", "canonical": "#9aa0a7", "tonalRamp": ["#3a3f46", "#585d64", "#757b82", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd2d5", "#e4e5e6"] },
-      "rest": { "role": "neutral", "displayName": "Rest", "canonical": "#858b92", "tonalRamp": ["#3a3f46", "#4a4f56", "#585d64", "#6e747b", "#858b92", "#9aa0a7", "#b8bcc1", "#cfd2d5"] },
-      "board-blue": { "role": "primary", "displayName": "Departure-Board Blue", "canonical": "#1d2858", "tonalRamp": ["#0d1230", "#141c44", "#1d2858", "#2c3a78", "#36468c", "#5a68a8", "#8c95c4", "#c3c8de"] },
-      "board-line": { "role": "primary", "displayName": "Board Rule", "canonical": "#2c3a78", "tonalRamp": ["#141c44", "#1d2858", "#2c3a78", "#36468c", "#4a5a9c", "#6b78b0", "#8c95c4", "#b8bed6"] },
-      "board-text": { "role": "neutral", "displayName": "Board Paper", "canonical": "#f2f2ee", "tonalRamp": ["#8c8c88", "#a8a8a4", "#c3c3bf", "#d6d6d2", "#e4e4e0", "#ececE8", "#f2f2ee", "#f9f9f7"] },
-      "board-muted": { "role": "neutral", "displayName": "Board Mist", "canonical": "#c3c8de", "tonalRamp": ["#5a6080", "#757c9c", "#8e95b4", "#a6adc9", "#b8bed6", "#c3c8de", "#d6d9e8", "#e8eaf2"] },
-      "signal-red": { "role": "secondary", "displayName": "Signal Red", "canonical": "#eb0000", "tonalRamp": ["#3a1514", "#6e0a0a", "#a80000", "#eb0000", "#ff3b30", "#ff6b5e", "#ff9b92", "#ffd6d1"] },
-      "warning-text": { "role": "secondary", "displayName": "Warning Coral", "canonical": "#ff6b5e", "tonalRamp": ["#3a1514", "#7a2a25", "#b8443b", "#eb5a4e", "#ff6b5e", "#ff8d83", "#ffb4ab", "#ffd6d1"] },
-      "warning-wash": { "role": "secondary", "displayName": "Warning Wash", "canonical": "#3a1514", "tonalRamp": ["#1c0a09", "#2a100f", "#3a1514", "#451a18", "#5a2420", "#7a2a25", "#a03a33", "#c85a52"] }
+      "accent": { "role": "primary", "displayName": "Interaction Indigo", "canonical": "#5b4ff5", "darkValue": "#8a83ff", "tonalRamp": ["#1a1554", "#2a2190", "#3d32c9", "#5b4ff5", "#7a71f8", "#a19bfa", "#c8c4fc", "#ebe9fe"] },
+      "state-red": { "role": "tertiary", "displayName": "Warning Red", "canonical": "#e5372d", "darkValue": "#ff453a", "tonalRamp": ["#4a0e0a", "#7d1812", "#c4271e", "#e5372d", "#ff6b62", "#ff958e", "#ffc0bb", "#ffe9e7"] },
+      "state-orange": { "role": "tertiary", "displayName": "In-View Orange", "canonical": "#f08a00", "darkValue": "#ff9f0a", "tonalRamp": ["#3d2300", "#6b3d00", "#a65c00", "#f08a00", "#ffb340", "#ffc970", "#ffdfa6", "#fff3dd"] },
+      "state-green": { "role": "tertiary", "displayName": "Clear Green", "canonical": "#22a447", "darkValue": "#30d158", "tonalRamp": ["#0a3316", "#105522", "#177a33", "#22a447", "#4ade74", "#80e89d", "#b5f2c6", "#e6fbec"] },
+      "page": { "role": "neutral", "displayName": "Soft Page Grey", "canonical": "#f2f2f5", "darkValue": "#000000", "tonalRamp": ["#000000", "#1c1c1e", "#2c2c2e", "#5f5f66", "#707076", "#d9d9de", "#f2f2f5", "#ffffff"] },
+      "card": { "role": "neutral", "displayName": "Card White / Graphite", "canonical": "#ffffff", "darkValue": "#1c1c1e" },
+      "card-2": { "role": "neutral", "displayName": "Inset Grey", "canonical": "#f6f6f8", "darkValue": "#242427" },
+      "media": { "role": "neutral", "displayName": "Media Grey", "canonical": "#d9d9de", "darkValue": "#2c2c2e" },
+      "text": { "role": "neutral", "displayName": "Ink", "canonical": "#1d1d1f", "darkValue": "#f5f5f7" },
+      "text-2": { "role": "neutral", "displayName": "Secondary Ink", "canonical": "#5f5f66", "darkValue": "#a7a7ad" },
+      "text-3": { "role": "neutral", "displayName": "Tertiary Ink", "canonical": "#707076", "darkValue": "#8f8f96" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "rgb(16 16 20 / 0.08)", "darkValue": "rgb(255 255 255 / 0.08)" }
     },
     "typographyMeta": {
-      "clock-time": { "displayName": "Clock Time", "purpose": "Header digital time beside the station clock." },
-      "pane-title": { "displayName": "Pane Title", "purpose": "Devices, Warnings, Frames headings over a 2px rule." },
-      "body": { "displayName": "Body", "purpose": "Table cells and messages, tabular numerals." },
-      "button": { "displayName": "Button", "purpose": "Button labels." },
-      "table-head": { "displayName": "Table Head", "purpose": "White-on-blue table and strip heads." }
+      "hero-time": { "displayName": "Hero Time", "purpose": "Time of the newest warning; the only 3rem number on the page (2.25rem on phones)." },
+      "hero-title": { "displayName": "Hero Title", "purpose": "Hero card heading when no warning is on show; visually hidden once a warning is shown." },
+      "page-title": { "displayName": "Page Title", "purpose": "Top-bar title; intentionally the page anchor." },
+      "stat": { "displayName": "Stat", "purpose": "Hero stats and the top-bar clock." },
+      "card-title": { "displayName": "Card Title", "purpose": "Cameras, Recent warnings, Frames." },
+      "body": { "displayName": "Body", "purpose": "Default text with tabular figures; camera names and row times at 650." },
+      "meta": { "displayName": "Meta", "purpose": "Live state, card meta, pill buttons (600)." },
+      "label": { "displayName": "Label", "purpose": "Badges, stat labels, tile details, score lines; the smallest size." }
     },
-    "shadows": [],
+    "shadows": [
+      { "name": "resting", "value": "0 1px 2px rgb(16 16 20 / 0.04), 0 6px 24px rgb(16 16 20 / 0.06)", "darkValue": "0 0 0 1px rgb(255 255 255 / 0.08)", "purpose": "Every card and the default pill button." },
+      { "name": "lift", "value": "0 2px 6px rgb(16 16 20 / 0.06), 0 14px 36px rgb(16 16 20 / 0.1)", "darkValue": "0 0 0 1px rgb(255 255 255 / 0.16)", "purpose": "Hovered camera tile; under the red ring of an active hero card." },
+      { "name": "state-ring", "value": "0 0 0 2px var(--red)", "purpose": "Warning state on the hero, a tile, or a frame." },
+      { "name": "selection-ring", "value": "0 0 0 2px var(--accent)", "purpose": "Selected camera tile." },
+      { "name": "viewer", "value": "0 30px 80px rgb(0 0 0 / 0.35)", "purpose": "Snapshot viewer dialog only, over a blurred 55% black backdrop." }
+    ],
     "motion": [
-      { "name": "row-fade", "value": "background-color 150ms ease-out", "purpose": "Row and button hover." },
-      { "name": "dial-sweep", "value": "transform 1.9s linear", "purpose": "Dwell dial hand sweeps forward only; snaps back with no transition." },
-      { "name": "seconds-hand", "value": "58.5s sweep, 1.5s rest at 12", "purpose": "Station clock seconds hand; parks at 12 when offline; whole-second steps under reduced motion." }
+      { "name": "ease", "value": "cubic-bezier(0.22, 1, 0.36, 1)", "purpose": "All transitions and the hero settle." },
+      { "name": "hero-settle", "value": "600ms; scale(0.985) opacity 0.6 -> none opacity 1", "purpose": "A new warning settles into the hero card once." },
+      { "name": "dwell-fill", "value": "transform scaleX 2.6s linear", "purpose": "Dwell meter fills toward the camera's dwell limit between refreshes." },
+      { "name": "feedback", "value": "160-180ms", "purpose": "Pill and row hover fills, press scale 0.97, tile 1px lift." },
+      { "name": "reduced-motion", "value": "prefers-reduced-motion: reduce disables all transitions and animations", "purpose": "Accessibility floor." }
     ],
     "breakpoints": [
-      { "name": "narrow", "value": "960px" },
-      { "name": "phone", "value": "560px" }
+      { "name": "phone", "value": "max-width: 640px" },
+      { "name": "stacked", "value": "max-width: 1099px" },
+      { "name": "one-screen", "value": "min-width: 1100px and min-height: 620px" },
+      { "name": "short-tv", "value": "min-width: 1100px and max-height: 820px" },
+      { "name": "root-17px", "value": "min-width: 1600px" },
+      { "name": "root-22px", "value": "min-width: 2200px" }
     ]
   },
   "components": [
     {
-      "name": "Station Clock",
-      "kind": "custom",
-      "description": "Swiss railway clock with a red seconds hand; parks at 12 when the server is unreachable.",
-      "html": "<svg class=\"ds-clock\" viewBox=\"0 0 100 100\" width=\"52\" height=\"52\"><circle cx=\"50\" cy=\"50\" r=\"47\" fill=\"#f2f2ee\"></circle><line x1=\"50\" y1=\"58\" x2=\"50\" y2=\"27\" stroke=\"#121417\" stroke-width=\"6.5\"></line><line x1=\"50\" y1=\"60\" x2=\"50\" y2=\"12\" stroke=\"#121417\" stroke-width=\"4.5\" transform=\"rotate(60 50 50)\"></line><g class=\"ds-sec\"><line x1=\"50\" y1=\"66\" x2=\"50\" y2=\"24\" stroke=\"#eb0000\" stroke-width=\"1.8\"></line><circle cx=\"50\" cy=\"24\" r=\"6.5\" fill=\"#eb0000\"></circle></g></svg>",
-      "css": ".ds-clock { display: block; background: #1d2858; padding: 8px; }"
-    },
-    {
-      "name": "Dwell Dial",
-      "kind": "custom",
-      "description": "Per-device dial; hand sweeps toward the red limit tick at 12.",
-      "html": "<svg class=\"ds-dial\" viewBox=\"0 0 100 100\" width=\"36\" height=\"36\"><circle cx=\"50\" cy=\"50\" r=\"46\" fill=\"#22262b\" stroke=\"#2c3036\" stroke-width=\"2\"></circle><line x1=\"50\" y1=\"6\" x2=\"50\" y2=\"14\" stroke=\"#eb0000\" stroke-width=\"7\"></line><g transform=\"rotate(120 50 50)\"><line x1=\"50\" y1=\"58\" x2=\"50\" y2=\"18\" stroke=\"#eb0000\" stroke-width=\"3\"></line><circle cx=\"50\" cy=\"18\" r=\"8\" fill=\"#eb0000\"></circle></g></svg>",
-      "css": ".ds-dial { display: block; }"
-    },
-    {
-      "name": "Board Button",
+      "name": "Pill Button",
       "kind": "button",
-      "refersTo": "button",
-      "description": "Outlined sharp button on the blue band; pressed state inverts.",
-      "html": "<button class=\"ds-button\">Pause</button>",
-      "css": ".ds-button { font: 700 13px Arimo, Helvetica, Arial, sans-serif; color: #f2f2ee; background: #1d2858; border: 1px solid #8c95c4; border-radius: 2px; padding: 6px 14px; cursor: pointer; transition: background-color 150ms ease-out, border-color 150ms ease-out; } .ds-button:hover { background: #2c3a78; border-color: #f2f2ee; } .ds-button:active { background: #36468c; } .ds-button:focus-visible { outline: 2px solid #f2f2ee; outline-offset: 2px; }"
+      "refersTo": "pill-button",
+      "description": "Default control (Pause, Close): white pill on resting shadow; indigo when pressed.",
+      "html": "<button class=\"ds-pill\" type=\"button\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"6.5\" y=\"5\" width=\"3.6\" height=\"14\" rx=\"1.2\" fill=\"currentColor\"/><rect x=\"13.9\" y=\"5\" width=\"3.6\" height=\"14\" rx=\"1.2\" fill=\"currentColor\"/></svg>Pause</button>",
+      "css": ".ds-pill { display: inline-flex; align-items: center; gap: 8px; min-height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--card, #ffffff); color: var(--text, #1d1d1f); box-shadow: var(--shadow, 0 1px 2px rgb(16 16 20 / 0.04), 0 6px 24px rgb(16 16 20 / 0.06)); font: 600 0.875rem Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; cursor: pointer; transition: background-color 160ms cubic-bezier(0.22, 1, 0.36, 1), transform 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-pill:hover { background: var(--card-2, #f6f6f8); } .ds-pill:active { transform: scale(0.97); } .ds-pill:focus-visible { outline: 2px solid var(--accent, #5b4ff5); outline-offset: 2px; } .ds-pill[aria-pressed=\"true\"] { background: var(--accent, #5b4ff5); color: #fff; }"
     },
     {
-      "name": "Quiet Button",
+      "name": "Quiet Pill Button",
       "kind": "button",
-      "refersTo": "button-quiet",
-      "description": "Secondary action on dark ground (View, Show all devices).",
-      "html": "<button class=\"ds-button-quiet\">View</button>",
-      "css": ".ds-button-quiet { font: 400 13px Arimo, Helvetica, Arial, sans-serif; color: #ecece8; background: #121417; border: 1px solid #2c3036; border-radius: 2px; padding: 4px 10px; cursor: pointer; transition: background-color 150ms ease-out, border-color 150ms ease-out; } .ds-button-quiet:hover { background: #22262b; border-color: #9aa0a7; } .ds-button-quiet:focus-visible { outline: 2px solid #f2f2ee; outline-offset: 2px; }"
+      "refersTo": "pill-button-quiet",
+      "description": "Secondary action (Show all cameras): soft indigo, no shadow.",
+      "html": "<button class=\"ds-pill-quiet\" type=\"button\">Show all cameras</button>",
+      "css": ".ds-pill-quiet { display: inline-flex; align-items: center; min-height: 36px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--accent-soft, rgb(91 79 245 / 0.12)); color: var(--accent, #5b4ff5); font: 600 0.875rem Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; cursor: pointer; } .ds-pill-quiet:hover { filter: brightness(0.97); } .ds-pill-quiet:focus-visible { outline: 2px solid var(--accent, #5b4ff5); outline-offset: 2px; }"
     },
     {
-      "name": "Device Timetable",
-      "kind": "custom",
-      "refersTo": "table-head",
-      "description": "Blue-headed ruled table; selected row is blue, warning row is red wash with an icon and word.",
-      "html": "<table class=\"ds-table\"><thead><tr><th>Device</th><th>Status</th><th class=\"n\">Conf.</th></tr></thead><tbody><tr><td><b>0123456789ab</b></td><td class=\"clear\">Clear</td><td class=\"n\">0.12</td></tr><tr class=\"sel\"><td><b>a1b2c3d4e5f6</b></td><td>Pedestrian 2.1 s of 5 s</td><td class=\"n\">0.81</td></tr><tr class=\"warn\"><td><b>ffeeddccbbaa</b></td><td class=\"w\"><b>&#9650; Warning</b> 5.2 s</td><td class=\"n\">0.93</td></tr></tbody></table>",
-      "css": ".ds-table { width: 100%; border-collapse: collapse; font: 14px/1.45 Arimo, Helvetica, Arial, sans-serif; font-variant-numeric: tabular-nums; color: #ecece8; } .ds-table th { text-align: left; font-size: 12px; font-weight: 700; color: #f2f2ee; background: #1d2858; padding: 6px 8px; } .ds-table td { padding: 8px; border-bottom: 1px solid #2c3036; } .ds-table .n { text-align: right; } .ds-table .clear { color: #9aa0a7; } .ds-table tr.sel { background: #1d2858; color: #f2f2ee; } .ds-table tr.warn { background: #3a1514; } .ds-table .w { color: #ff6b5e; }"
+      "name": "State Badges",
+      "kind": "chip",
+      "refersTo": "badge-warning",
+      "description": "Every state is an icon plus a word in a pill; colour never stands alone.",
+      "html": "<div class=\"ds-badges\"><span class=\"ds-badge ds-badge--warning\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path fill=\"currentColor\" d=\"M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3l8.1-14Z\"/><path d=\"M12 9v4.5\" stroke=\"#e5372d\" stroke-width=\"2.2\" stroke-linecap=\"round\"/><circle cx=\"12\" cy=\"17\" r=\"1.25\" fill=\"#e5372d\"/></svg>Warning now</span><span class=\"ds-badge ds-badge--inview\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"13.6\" cy=\"3.6\" r=\"2.1\" fill=\"currentColor\"/><path fill=\"currentColor\" d=\"M11.4 7.1c.6-.5 1.3-.6 2-.5l1.5.3c.8.2 1.4.7 1.7 1.4l1.1 2.7 2.4 1.1c.6.3.9 1 .6 1.6-.3.6-1 .8-1.6.5l-2.8-1.3a1.3 1.3 0 0 1-.6-.7l-.4-1-.9 3.8 2.6 2.8c.2.2.3.4.3.7l.6 4.6a1.2 1.2 0 0 1-2.4.3l-.5-4.2-2.4-2.4-1 3.8c-.1.3-.2.5-.4.7l-3.4 3a1.2 1.2 0 0 1-1.6-1.8l3.1-2.7 1.9-7.8-1.5.9-1.2 2.7a1.2 1.2 0 0 1-2.2-1l1.4-3c.1-.3.3-.5.6-.6Z\"/></svg>Someone in view</span><span class=\"ds-badge ds-badge--clear\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"10\" fill=\"currentColor\"/><path d=\"m7.5 12.3 3 3 6-6.3\" fill=\"none\" stroke=\"#fff\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>Clear</span><span class=\"ds-badge ds-badge--offline\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2.5 8.8a14 14 0 0 1 4.3-2.6M10 5.2a14 14 0 0 1 11.5 3.6M5.6 12.3a9 9 0 0 1 3.2-2M13.3 9.6a9 9 0 0 1 5.1 2.7M9 15.7a4.5 4.5 0 0 1 6 0\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><circle cx=\"12\" cy=\"19.2\" r=\"1.4\" fill=\"currentColor\"/><path d=\"m3.5 3.5 17 17\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg>No signal</span></div>",
+      "css": ".ds-badges { display: flex; flex-wrap: wrap; gap: 8px; padding: 12px; background: var(--card-2, #f6f6f8); border-radius: 14px; } .ds-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px 5px 9px; border-radius: 999px; background: var(--card, #ffffff); color: var(--text, #1d1d1f); font: 600 0.8125rem/1.2 Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; white-space: nowrap; } .ds-badge svg { width: 1.1em; height: 1.1em; flex: none; } .ds-badge--warning { background: var(--red, #e5372d); color: #fff; } .ds-badge--inview { background: var(--orange, #f08a00); color: #1d1d1f; } .ds-badge--clear { color: var(--green-text, #177a33); } .ds-badge--offline { color: var(--text-2, #5f5f66); }"
     },
     {
-      "name": "Frame Tile",
+      "name": "Card",
       "kind": "card",
-      "description": "4:3 thumbnail with time, confidence bar, status; warning tiles take a red outline and stamp.",
-      "html": "<div class=\"ds-frame\"><div class=\"ds-img\"><span class=\"ds-stamp\">&#9650; Warning</span></div><div class=\"ds-meta\"><b>14:02:11</b><span>0.93</span></div><div class=\"ds-bar\"><span></span></div><div class=\"ds-st\">Pedestrian · 5.2 s</div></div>",
-      "css": ".ds-frame { width: 132px; font: 12px Arimo, Helvetica, Arial, sans-serif; color: #ecece8; } .ds-img { position: relative; aspect-ratio: 4 / 3; background: #1a1d21; outline: 3px solid #eb0000; outline-offset: -3px; } .ds-stamp { position: absolute; left: 0; top: 0; background: #eb0000; color: #fff; font-size: 11px; font-weight: 700; padding: 2px 6px 2px 4px; } .ds-meta { display: flex; justify-content: space-between; padding-top: 6px; } .ds-bar { height: 3px; background: #2c3036; margin-top: 2px; } .ds-bar span { display: block; width: 93%; height: 100%; background: #ecece8; }"
+      "refersTo": "card",
+      "description": "The one container: 22px radius, white on resting shadow (graphite with hairline ring in dark).",
+      "html": "<section class=\"ds-card\"><div class=\"ds-card__head\"><h2>Cameras</h2><p>3 cameras</p></div><p class=\"ds-card__body\">Earlier warnings appear here, newest first.</p></section>",
+      "css": ".ds-card { padding: 20px; border-radius: 22px; background: var(--card, #ffffff); color: var(--text, #1d1d1f); box-shadow: var(--shadow, 0 1px 2px rgb(16 16 20 / 0.04), 0 6px 24px rgb(16 16 20 / 0.06)); font-family: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; } .ds-card__head { display: flex; align-items: baseline; gap: 4px 12px; margin-bottom: 16px; } .ds-card__head h2 { margin: 0; font-size: 1.0625rem; font-weight: 700; letter-spacing: -0.01em; } .ds-card__head p { margin: 0; color: var(--text-2, #5f5f66); font-size: 0.875rem; } .ds-card__body { margin: 0; color: var(--text-2, #5f5f66); font-size: 0.9375rem; line-height: 1.5; }"
     },
     {
-      "name": "Warning Banner",
+      "name": "Camera Tile",
       "kind": "custom",
-      "description": "Full-width red-wash bar shown while the server is unreachable.",
-      "html": "<div class=\"ds-banner\"><span>&#9650;</span><span>Server unreachable. Retrying every 2 seconds; the clock stops until data returns.</span></div>",
-      "css": ".ds-banner { display: flex; gap: 8px; align-items: center; padding: 8px 24px; background: #3a1514; color: #ffd6d1; border-bottom: 1px solid #eb0000; font: 14px Arimo, Helvetica, Arial, sans-serif; }"
+      "refersTo": "camera-tile",
+      "description": "Home-style tile: snapshot, state badge, name, detail, and a dwell meter filling toward the limit.",
+      "html": "<button class=\"ds-tile\" type=\"button\"><span class=\"ds-tile__media\"><span class=\"ds-tile__badge\">Someone in view</span></span><span class=\"ds-tile__body\"><span class=\"ds-tile__name\">288485a0c0c0</span><span class=\"ds-tile__detail\">In view 5 s of 8 s</span><span class=\"ds-meter\"><span class=\"ds-meter__fill\"></span></span></span></button>",
+      "css": ".ds-tile { display: flex; flex-direction: column; width: 220px; padding: 0; border: 0; border-radius: 18px; background: var(--card-2, #f6f6f8); text-align: left; cursor: pointer; overflow: hidden; font-family: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; color: var(--text, #1d1d1f); transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-tile:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgb(16 16 20 / 0.06), 0 14px 36px rgb(16 16 20 / 0.1); } .ds-tile:focus-visible { outline: 2px solid var(--accent, #5b4ff5); outline-offset: 2px; } .ds-tile[aria-pressed=\"true\"] { box-shadow: 0 0 0 2px var(--accent, #5b4ff5); } .ds-tile__media { position: relative; display: block; aspect-ratio: 5 / 2; background: var(--media, #d9d9de); } .ds-tile__badge { position: absolute; left: 8px; top: 8px; padding: 5px 12px; border-radius: 999px; background: var(--orange, #f08a00); color: #1d1d1f; font-size: 0.8125rem; font-weight: 600; line-height: 1.2; } .ds-tile__body { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px 12px; } .ds-tile__name { font-size: 0.9375rem; font-weight: 650; } .ds-tile__detail { color: var(--text-2, #5f5f66); font-size: 0.8125rem; } .ds-meter { display: block; height: 6px; margin: 4px 0 2px; border-radius: 999px; background: rgb(120 120 128 / 0.14); overflow: hidden; } .ds-meter__fill { display: block; height: 100%; border-radius: inherit; background: var(--orange, #f08a00); transform: scaleX(0.62); transform-origin: left; }"
+    },
+    {
+      "name": "Recent Warning Row",
+      "kind": "custom",
+      "refersTo": "warning-row",
+      "description": "Thumbnail, time and camera, right-aligned Lingered and Score values; whole rows only.",
+      "html": "<button class=\"ds-row\" type=\"button\"><span class=\"ds-row__thumb\"></span><span class=\"ds-row__main\"><span class=\"ds-row__time\">14:02:31</span><span class=\"ds-row__cam\">288485a0c0c0</span></span><span class=\"ds-row__num\"><b>9 s</b>Lingered</span><span class=\"ds-row__num\"><b>0.87</b>Score</span></button>",
+      "css": ".ds-row { display: grid; grid-template-columns: 4.5rem minmax(0, 1fr) 5.5rem 5.5rem; align-items: center; gap: 12px; width: 420px; padding: 8px; border: 0; border-radius: 14px; background: none; text-align: left; cursor: zoom-in; font-family: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; font-feature-settings: 'tnum', 'cv11'; color: var(--text, #1d1d1f); transition: background-color 160ms cubic-bezier(0.22, 1, 0.36, 1); } .ds-row:hover { background: var(--card-2, #f6f6f8); } .ds-row:focus-visible { outline: 2px solid var(--accent, #5b4ff5); outline-offset: 2px; } .ds-row__thumb { display: block; aspect-ratio: 4 / 3; border-radius: 10px; background: var(--media, #d9d9de); } .ds-row__main { display: flex; flex-direction: column; } .ds-row__time { font-weight: 650; font-size: 0.9375rem; } .ds-row__cam, .ds-row__num { color: var(--text-2, #5f5f66); font-size: 0.8125rem; } .ds-row__num { text-align: right; } .ds-row__num b { display: block; color: var(--text, #1d1d1f); font-size: 0.9375rem; font-weight: 600; }"
+    },
+    {
+      "name": "Top Bar",
+      "kind": "nav",
+      "refersTo": "page-title",
+      "description": "Sticky frosted bar: title and status summary, live dot with word, clock.",
+      "html": "<header class=\"ds-topbar\"><div><h1>Pedestrian warnings</h1><p>All clear on 3 cameras</p></div><div class=\"ds-topbar__right\"><span class=\"ds-live\">Live</span><time>14:05:12</time></div></header>",
+      "css": ".ds-topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 84px; padding: 12px 32px; background: color-mix(in srgb, var(--page, #f2f2f5) 82%, transparent); backdrop-filter: saturate(1.6) blur(18px); font-family: Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; font-feature-settings: 'tnum', 'cv11'; color: var(--text, #1d1d1f); } .ds-topbar h1 { margin: 0; font-size: 1.625rem; font-weight: 700; letter-spacing: -0.025em; line-height: 1.2; } .ds-topbar p { margin: 0; color: var(--text-2, #5f5f66); font-size: 0.9375rem; } .ds-topbar__right { display: flex; align-items: center; gap: 16px; } .ds-topbar time { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.01em; } .ds-live { display: inline-flex; align-items: center; gap: 8px; color: var(--text-2, #5f5f66); font-size: 0.875rem; font-weight: 500; } .ds-live::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--green, #22a447); box-shadow: 0 0 0 3px var(--green-soft, rgb(34 164 71 / 0.12)); }"
+    },
+    {
+      "name": "Offline Banner",
+      "kind": "custom",
+      "refersTo": "banner",
+      "description": "Server-unreachable alert: soft red wash, red words, offline icon.",
+      "html": "<div class=\"ds-banner\" role=\"alert\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M2.5 8.8a14 14 0 0 1 4.3-2.6M10 5.2a14 14 0 0 1 11.5 3.6M5.6 12.3a9 9 0 0 1 3.2-2M13.3 9.6a9 9 0 0 1 5.1 2.7M9 15.7a4.5 4.5 0 0 1 6 0\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/><circle cx=\"12\" cy=\"19.2\" r=\"1.4\" fill=\"currentColor\"/><path d=\"m3.5 3.5 17 17\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"/></svg><span>Can't reach the server. Retrying every 2 seconds.</span></div>",
+      "css": ".ds-banner { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; background: var(--red-soft, rgb(229 55 45 / 0.12)); color: var(--red-text, #c4271e); font: 600 0.9375rem/1.5 Inter, -apple-system, 'Segoe UI', system-ui, sans-serif; } .ds-banner svg { width: 1em; height: 1em; flex: none; }"
     }
   ],
   "narrative": {
-    "northStar": "The Station Clock Timetable",
-    "overview": "A departure board seen from a dark control room. The page is a Swiss timetable: flat ruled tables on a near-black ground, one neo-grotesque (Arimo, self-hosted) at a handful of sizes, and a single saturated blue (the departure-board band) that marks every header. Information is arranged like a station concourse: a clock that tells you the system is alive, rows that tell you what each device is doing, and strips of frames underneath.\n\nRed is the only alarm color and is scarce by construction: it appears on the station clock's seconds hand, the dwell-limit tick, and warning states. A calm screen has almost no red on it, so any red is news. Everything else is ground, grey, or board blue.",
+    "northStar": "The Quiet Home Screen",
+    "overview": "A modern consumer dashboard in the manner of Apple Home / iOS and the Stripe dashboard: a soft page, rounded cards that float on gentle shadows, photography first, one indigo accent, and system state colours. The newest warning is the hero card, with its snapshot on top and its time as the loudest number on screen; every camera is a home-style tile with its newest snapshot and a dwell meter. When nothing is happening the screen is calm: white and grey surfaces, green \"Clear\" badges, nothing moving.\n\nThe system follows the operating system's light/dark setting through two complete token sets. Light is a soft grey page with white cards and layered ambient shadows; dark is a black page with graphite cards held by hairline rings instead of shadows. The same layout, radii, and type carry both.\n\nIt is built to be read from across a room on a wall TV and up close at a desk. On wide screens the whole dashboard fits one viewport and no card scrolls; on narrow screens it stacks into a single column. It refuses themed costume, terminal/NOC styling, and anything that flashes without a reason.",
     "keyCharacteristics": [
-      "Dark-first, flat, ruled; depth comes from tone and rules, never shadow.",
-      "One typeface, tabular numerals everywhere, weight (400 vs 700) as the main hierarchy lever.",
-      "Board blue for structure (header band, table heads, strip heads, selected row); red for alarm only.",
-      "Instrument metaphors do the state-telling: a station clock in the header, a dwell dial per device.",
-      "Warning is never color alone: it also carries a triangle icon, the word \"Warning\", and a filled dial."
+      "System light and dark token sets via `prefers-color-scheme`; shadows in light, hairline rings in dark.",
+      "Large soft radii (22px cards, 18px tiles, 14px media) with pill badges and buttons.",
+      "One indigo accent for interaction and selection only; red, orange, green, and grey for state only.",
+      "Inter variable, self-hosted, tabular figures everywhere.",
+      "Fits one screen at 1100px wide and 620px tall or more; cards never scroll internally.",
+      "One motion moment: a new warning settles into the hero card."
     ],
     "rules": [
-      { "name": "The Red Is News Rule", "body": "Red marks the seconds hand and warnings, nothing else. Never use it for decoration, links, hover, or errors that are not warnings.", "section": "colors" },
-      { "name": "The Board Blue Rule", "body": "Blue is structure (heads, band, selection). It never carries meaning about device state.", "section": "colors" },
-      { "name": "The Not Color Alone Rule", "body": "Every red state pairs with an icon, a word, or a shape change.", "section": "colors" },
-      { "name": "The Weight Not Size Rule", "body": "Differentiate with 400 versus 700 before reaching for a new size. Quiet states are 400 in muted grey; attention states are 700.", "section": "typography" },
-      { "name": "The Tabular Rule", "body": "Numbers stay tabular and right-aligned (num columns).", "section": "typography" },
-      { "name": "The Flat Timetable Rule", "body": "Separate with rules and tone, never with shadow or blur.", "section": "elevation" }
+      { "name": "The Icon-and-Word Rule", "body": "A state colour never appears alone. Red, orange, green, and grey states are always carried by a badge with an icon and a word (\"Warning now\", \"Someone in view\", \"Clear\", \"No signal\", \"Earlier\"); rings and meter fills only reinforce a badge already on the same element.", "section": "colors" },
+      { "name": "The Indigo Is for Hands Rule", "body": "Indigo means \"you can act on this\" or \"you chose this\". It is never used to flag a camera's state, and state colours are never used for buttons.", "section": "colors" },
+      { "name": "The One Loud Number Rule", "body": "Only the hero time reaches 3rem. Everything else stays at or below the 1.75rem hero title, so the newest warning's time wins from across the room without anything else being oversized.", "section": "typography" },
+      { "name": "The Hairline-in-the-Dark Rule", "body": "Dark mode never uses drop shadows; depth there is a 1px ring at 8% (resting) or 16% (lift) white.", "section": "elevation" }
     ],
     "dos": [
-      "Do build new surfaces from ruled tables and strips on Night Ground, with blue heads.",
-      "Do reserve Signal Red for the seconds hand, the dwell limit, and warning states; use Warning Coral for red text.",
-      "Do pair every warning signal with an icon or word as well as red.",
-      "Do keep numerals tabular and right-aligned, and use 400/700 weight for hierarchy.",
-      "Do use the 4/8/12/16/24/32 spacing scale and 2px corners.",
-      "Do honor reduced motion: no sweeping hands, no transitions."
+      "**Do** define every colour as a light/dark pair under `prefers-color-scheme`, and swap shadows for 1px hairline rings in dark.",
+      "**Do** carry every state with a badge that has an icon and a word; use red, orange, green, and grey only for state.",
+      "**Do** keep indigo (`accent`) for focus, selection, and pressed controls.",
+      "**Do** letterbox snapshots in the hero and viewer (`object-fit: contain` on black).",
+      "**Do** keep the dashboard to one screen at 1100px x 620px and above: show whole rows and say how many did not fit instead of scrolling a card.",
+      "**Do** keep the hero time (3rem) the only loud number, with the 1.625rem page title as the anchor.",
+      "**Do** limit motion to the hero settle (600ms), the dwell meter fill, and small hover/press feedback, and disable all of it under `prefers-reduced-motion: reduce`.",
+      "**Do** self-host Inter and keep tabular figures on."
     ],
     "donts": [
-      "Don't add shadows, glows, gradients, or blur.",
-      "Don't use red for hover, links, selection, or non-warning errors.",
-      "Don't introduce a second typeface or load fonts from a network; Arimo is self-hosted for offline LAN use.",
-      "Don't use blue to signal state; it is structural only.",
-      "Don't use large bright surfaces; the clock face is the brightest object on the page."
+      "**Don't** use a state colour without its icon and word, or use indigo to signal state.",
+      "**Don't** add drop shadows in dark mode.",
+      "**Don't** make a card scroll internally on desktop or TV layouts.",
+      "**Don't** crop the hero or viewer snapshot.",
+      "**Don't** add flashing, pulsing, or looping animation; nothing moves without a reason.",
+      "**Don't** load fonts or assets from a CDN; the dashboard runs on an offline LAN.",
+      "**Don't** use tertiary ink (`text-3`) for anything a reader needs to make a decision; it is reserved for faint supporting metadata."
     ]
   }
 }

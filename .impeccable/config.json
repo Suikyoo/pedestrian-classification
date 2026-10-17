@@ -4,13 +4,13 @@
     "ignoreFiles": [],
     "ignoreValues": [
       {
-        "rule": "monotonous-spacing",
-        "value": "*",
+        "rule": "overused-font",
+        "value": "inter",
         "files": [
-          "server/master/static/index.html"
+          "server/master/static/style.css"
         ],
-        "createdAt": "2026-10-06T14:19:10.456Z",
-        "reason": "finish reviewer: even 8px cell padding is the committed timetable rhythm"
+        "createdAt": "2026-10-17T16:45:07.256Z",
+        "reason": "user chose the canon (Apple Home / Stripe dashboard references) for an Operate surface; a workhorse UI sans is the brief, Inter self-hosted for offline LAN"
       }
     ]
   }

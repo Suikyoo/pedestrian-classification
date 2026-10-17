@@ -1,13 +1,13 @@
-// Inference dashboard. Polls the read-only API; device-provided text is set with textContent only.
+// Pedestrian warnings dashboard. Polls the read-only API; device-provided text is set with textContent only.
 "use strict";
 
 const POLL_MS = 2000;
-const WARNINGS_MS = 5000;
+const WARNINGS_MS = 3000;
 const STALE_S = 10;
 const STATUS_STALE_S = 150; // devices send status every 60 s
-const FRAMES_PER_DEVICE = 48; // the strip shows one row of these; the selected device shows all
+const LOG_SIZE = 20;
+const FRAMES_PER_DEVICE = 48; // a collapsed reel shows one row of these; the selected camera shows all
 const SVG_NS = "http://www.w3.org/2000/svg";
-const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 const state = {
   cfg: { threshold: 0.6, history: 200 },
@@ -16,9 +16,21 @@ const state = {
   lastId: 0,
   paused: false,
   online: true,
-  rows: new Map(), // mac -> device row parts
-  strips: new Map(), // mac -> frame strip parts
+  newestAlertId: null,
+  newestAlert: null,
+  summary: null, // camera counts from the last status poll
+  cameras: new Map(), // mac -> tile parts
+  strips: new Map(), // mac -> frame reel parts
+  thumbs: new Map(), // mac -> { id, url, ts } of the newest frame
+  cooldowns: new Map(), // mac -> cooldown_s the device reported
 };
+
+// A warning counts as current for the same window the camera tile shows "Warning".
+function warningIsCurrent(a) {
+  if (!a) return false;
+  const spanS = Math.max(state.cooldowns.get(a.mac) ?? 30, STALE_S);
+  return Date.now() / 1000 - a.ts < spanS;
+}
 
 const $ = (sel) => document.querySelector(sel);
 
@@ -29,16 +41,22 @@ function el(tag, className, text) {
   return node;
 }
 
-function svg(tag, attrs) {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, String(v));
-  return node;
+function useIcon(id, className) {
+  const icon = document.createElementNS(SVG_NS, "svg");
+  icon.setAttribute("class", className || "icon");
+  icon.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS(SVG_NS, "use");
+  use.setAttribute("href", `#${id}`);
+  icon.append(use);
+  return { icon, use };
 }
 
-function warnIcon() {
-  const icon = svg("svg", { class: "icon", viewBox: "0 0 24 24", "aria-hidden": "true" });
-  icon.append(svg("path", { d: "M12 3 2 21h20L12 3Z" }), svg("path", { d: "M12 10v5M12 18v.01" }));
-  return icon;
+const ICON_FOR = { warning: "i-alert", pedestrian: "i-walk", clear: "i-check", nosignal: "i-offline", past: "i-alert" };
+
+function fillBadge(node, kind, label) {
+  node.dataset.kind = kind;
+  node.replaceChildren(useIcon(ICON_FOR[kind]).icon, document.createTextNode(label));
+  return node;
 }
 
 async function getJSON(url) {
@@ -50,10 +68,19 @@ async function getJSON(url) {
 const timeFmt = new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 const clock = (ts) => timeFmt.format(new Date(ts * 1000));
 const secs = (s) => `${s.toFixed(1)} s`;
-const conf = (c) => c.toFixed(2);
 const score = (s) => (s == null ? "–" : s.toFixed(2));
 
-/* ---------- connection state ---------- */
+function ago(ts) {
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  if (s < 60) return `${s} s ago`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m} min ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h} h ${m % 60} min ago`;
+  return `${Math.floor(h / 24)} d ago`;
+}
+
+/* ---------- connection and summary ---------- */
 
 function setOnline(ok) {
   if (state.online === ok) return;
@@ -73,40 +100,28 @@ function renderLinkState() {
   }
 }
 
-/* ---------- station clock (signature: stops at 12 while the server is unreachable) ---------- */
-
-function buildTicks(group, count, every, inner, outer, cls, firstCls) {
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * 2 * Math.PI;
-    const isMajor = every && i % every === 0;
-    const r1 = isMajor ? inner - 6 : inner;
-    let className = isMajor ? `${cls} major` : cls;
-    if (i === 0 && firstCls) className += ` ${firstCls}`;
-    group.append(svg("line", {
-      class: className,
-      x1: 50 + r1 * Math.sin(a), y1: 50 - r1 * Math.cos(a),
-      x2: 50 + outer * Math.sin(a), y2: 50 - outer * Math.cos(a),
-    }));
+function renderSummary() {
+  const node = $("#summary");
+  const c = state.summary;
+  node.dataset.tone = c && c.warning ? "warning" : "";
+  if (!c) {
+    node.textContent = "Connecting to the server";
+  } else if (c.total === 0) {
+    node.textContent = "Waiting for cameras";
+  } else {
+    const cams = `${c.total} ${c.total === 1 ? "camera" : "cameras"}`;
+    const parts = [];
+    if (c.warning) parts.push(`${c.warning} warning`);
+    if (c.pedestrian) parts.push(`${c.pedestrian} with someone in view`);
+    if (c.nosignal) parts.push(`${c.nosignal} offline`);
+    node.textContent = parts.length ? `${cams}: ${parts.join(", ")}` : `All clear on ${cams}`;
   }
 }
 
-function tickStationClock() {
-  const now = new Date();
-  $("#now").textContent = timeFmt.format(now);
-  const s = now.getSeconds() + now.getMilliseconds() / 1000;
-  const m = now.getMinutes() + s / 60;
-  const h = (now.getHours() % 12) + m / 60;
-  // Swiss station clocks sweep the seconds hand in 58.5 s and rest at 12 for 1.5 s.
-  const secAngle = state.online ? Math.min(s / 58.5, 1) * 360 : 0;
-  $("#hand-second").style.transform = `rotate(${REDUCED_MOTION ? Math.floor(secAngle / 6) * 6 : secAngle}deg)`;
-  $("#hand-minute").style.transform = `rotate(${Math.floor(m) * 6}deg)`;
-  $("#hand-hour").style.transform = `rotate(${h * 30}deg)`;
-}
-
-function startStationClock() {
-  buildTicks($("#station-ticks"), 60, 5, 40, 45, "clock__tick");
-  const loop = () => { tickStationClock(); requestAnimationFrame(loop); };
-  if (REDUCED_MOTION) { tickStationClock(); setInterval(tickStationClock, 1000); } else loop();
+function tick() {
+  $("#now").textContent = timeFmt.format(new Date());
+  renderBoardTiming();
+  renderSummary();
 }
 
 /* ---------- settings ---------- */
@@ -119,10 +134,10 @@ async function loadConfig() {
   $("#set-history").textContent = String(cfg.history);
 }
 
-/* ---------- devices timetable ---------- */
+/* ---------- camera state ---------- */
 
-// Devices decide warnings themselves. Frames (and so "Pedestrian") exist only in stream mode.
-function deviceState(d, nowS) {
+// Devices decide warnings themselves. Frames (and so "Someone in view") exist only in stream mode.
+function cameraState(d, nowS) {
   if (!d.online) return { kind: "nosignal", label: "Offline", detail: "", rank: 3 };
   if (d.last_seen_ts == null || nowS - d.last_seen_ts > STATUS_STALE_S) {
     return { kind: "nosignal", label: "No signal", detail: "", rank: 3 };
@@ -130,181 +145,309 @@ function deviceState(d, nowS) {
   if (d.detect_ok === false) return { kind: "nosignal", label: "Detector fault", detail: "", rank: 3 };
   const cooldown = d.cooldown_s ?? 30;
   if (d.last_warning_ts != null && nowS - d.last_warning_ts < Math.max(cooldown, STALE_S)) {
-    return { kind: "warning", label: "Warning", detail: clock(d.last_warning_ts), rank: 0 };
+    return { kind: "warning", label: "Warning", detail: `Warned at ${clock(d.last_warning_ts)}`, rank: 0 };
   }
   const fresh = d.last_ts != null && nowS - d.last_ts <= STALE_S;
   if (fresh && d.last_device_score != null && d.threshold != null && d.last_device_score >= d.threshold) {
     const limit = d.dwell_s == null ? "" : ` of ${d.dwell_s} s`;
-    return { kind: "pedestrian", label: "Pedestrian", detail: `${secs(d.last_dwell_s ?? 0)}${limit}`, rank: 1 };
+    return { kind: "pedestrian", label: "Someone in view", detail: `In view ${secs(d.last_dwell_s ?? 0)}${limit}`, rank: 1 };
   }
-  return { kind: "clear", label: "Clear", detail: d.streaming ? "streaming" : "", rank: 2 };
+  return { kind: "clear", label: "Clear", detail: "", rank: 2 };
 }
 
-function buildDial() {
-  const dial = svg("svg", { class: "dial", viewBox: "0 0 100 100", "aria-hidden": "true" });
-  const ticks = svg("g");
-  dial.append(svg("circle", { class: "dial__face", cx: 50, cy: 50, r: 46 }), ticks);
-  const hand = svg("g", { class: "dial__hand" });
-  hand.append(svg("line", { x1: 50, y1: 58, x2: 50, y2: 18 }), svg("circle", { cx: 50, cy: 18, r: 8 }));
-  dial.append(hand);
-  return { dial, ticks, hand, tickCount: -1, fraction: 0 };
+/* ---------- camera tiles ---------- */
+
+function selectCamera(mac) {
+  state.selected = state.selected === mac ? "" : mac;
+  for (const [m, parts] of state.cameras) parts.button.setAttribute("aria-pressed", String(m === state.selected));
+  $("#frames-scope").textContent = state.selected ? `Camera ${state.selected}` : "All cameras";
+  $("#show-all").hidden = !state.selected;
+  renderStripVisibility();
+  if (state.selected) {
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("#frames").scrollIntoView({ behavior: smooth ? "smooth" : "auto" });
+  }
 }
 
-function updateDial(parts, kind, dwell, limit) {
-  const count = Math.max(1, Math.min(12, Math.round(limit || 1)));
-  if (parts.tickCount !== count) {
-    parts.ticks.replaceChildren();
-    // Tick 0 (at 12 o'clock) marks the dwell limit, where a warning fires.
-    buildTicks(parts.ticks, count, 0, 36, 44, "dial__tick", "limit");
-    parts.tickCount = count;
-  }
-  parts.dial.dataset.kind = kind;
+function buildTile(mac) {
+  const li = el("li");
+  const button = el("button", "tile");
+  button.type = "button";
+  button.setAttribute("aria-pressed", "false");
+  const media = el("span", "tile__media");
+  const placeholder = useIcon("i-camera", "tile__media-icon").icon;
+  const badge = el("span", "badge");
+  media.append(placeholder, badge);
+  const body = el("span", "tile__body");
+  const name = el("span", "tile__name", mac);
+  const detail = el("span", "tile__detail");
+  const meter = el("span", "meter");
+  const fill = el("span", "meter__fill");
+  meter.append(fill);
+  const scores = el("span", "tile__scores");
+  const age = el("span", "tile__age");
+  body.append(name, detail, meter, scores);
+  button.append(media, body);
+  button.addEventListener("click", () => selectCamera(mac));
+  li.append(button);
+  return { li, button, media, placeholder, img: null, thumbId: null, badge, detail, fill, scores, age, fraction: 0 };
+}
+
+function scoreItem(label, value) {
+  const span = el("span");
+  span.append(document.createTextNode(`${label} `), el("b", "", value));
+  return span;
+}
+
+function updateMeter(parts, kind, dwell, limit) {
   const progress = limit > 0 ? Math.min(dwell / limit, 1) : 1;
   const fraction = kind === "pedestrian" ? progress : kind === "warning" ? 1 : 0;
-  // A station hand never runs backwards: sweep forward, snap back to 12 on reset.
+  // The meter only fills forward; when a run resets it snaps back without animating.
   const snapping = fraction < parts.fraction;
-  parts.hand.classList.toggle("is-snapping", snapping);
-  parts.hand.style.transform = `rotate(${fraction * 360}deg)`;
+  parts.fill.classList.toggle("is-snapping", snapping);
+  parts.fill.style.transform = `scaleX(${fraction})`;
   if (snapping) {
-    parts.hand.getBoundingClientRect(); // commit the snapped position before restoring the transition
-    requestAnimationFrame(() => parts.hand.classList.remove("is-snapping"));
+    parts.fill.getBoundingClientRect();
+    requestAnimationFrame(() => parts.fill.classList.remove("is-snapping"));
   }
   parts.fraction = fraction;
 }
 
-function selectDevice(mac) {
-  state.selected = state.selected === mac ? "" : mac;
-  for (const [m, parts] of state.rows) {
-    const on = m === state.selected;
-    parts.tr.classList.toggle("is-selected", on);
-    parts.button.setAttribute("aria-pressed", String(on));
-  }
-  $("#frames-scope").textContent = state.selected ? `Device ${state.selected}` : "All devices";
-  $("#show-all").hidden = !state.selected;
-  renderStripVisibility();
+function updateTileThumb(mac) {
+  const parts = state.cameras.get(mac);
+  const thumb = state.thumbs.get(mac);
+  if (!parts || !thumb || parts.thumbId === thumb.id) return;
+  const img = el("img");
+  img.alt = "";
+  img.src = thumb.url;
+  img.decode().catch(() => {}).then(() => {
+    if (parts.img) parts.img.replaceWith(img);
+    else parts.media.prepend(img);
+    parts.img = img;
+    parts.placeholder.remove();
+  });
+  parts.thumbId = thumb.id;
 }
 
-function buildRow(mac) {
-  const tr = el("tr");
-  const dialParts = buildDial();
-  const tdDial = el("td");
-  tdDial.append(dialParts.dial);
-  const tdDevice = el("td");
-  const button = el("button", "device-select", mac);
-  button.type = "button";
-  button.setAttribute("aria-pressed", "false");
-  button.setAttribute("aria-label", `Show only frames from device ${mac}`);
-  button.addEventListener("click", (e) => { e.stopPropagation(); selectDevice(mac); });
-  const settings = el("span", "status__detail", "settings unknown");
-  tdDevice.append(button, settings);
-  const tdStatus = el("td");
-  const tdConf = el("td", "num");
-  const tdLast = el("td", "num hide-sm");
-  const tdWarn = el("td", "num hide-sm");
-  tr.append(tdDial, tdDevice, tdStatus, tdConf, tdLast, tdWarn);
-  tr.addEventListener("click", () => selectDevice(mac));
-  return { tr, button, settings, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
-}
-
-function statusNode(st) {
-  const span = el("span", `status status--${st.kind}`);
-  const word = el("span", "status__word");
-  if (st.kind === "warning") word.append(warnIcon());
-  word.append(document.createTextNode(st.label));
-  span.append(word);
-  if (st.detail) span.append(el("span", "status__detail", st.detail));
-  return span;
-}
-
-function renderDevices(devices) {
+function renderCameras(devices) {
   const nowS = Date.now() / 1000;
-  const tbody = $("#devices");
-  const decorated = devices.map((d) => ({ d, st: deviceState(d, nowS) }));
+  const list = $("#cameras");
+  const decorated = devices.map((d) => ({ d, st: cameraState(d, nowS) }));
   decorated.sort((a, b) => a.st.rank - b.st.rank || (b.d.last_dwell_s ?? 0) - (a.d.last_dwell_s ?? 0) || a.d.mac.localeCompare(b.d.mac));
 
   const present = new Set();
   for (const { d, st } of decorated) {
     present.add(d.mac);
-    let parts = state.rows.get(d.mac);
+    let parts = state.cameras.get(d.mac);
     if (!parts) {
-      parts = buildRow(d.mac);
-      state.rows.set(d.mac, parts);
-      const on = d.mac === state.selected;
-      parts.tr.classList.toggle("is-selected", on);
-      parts.button.setAttribute("aria-pressed", String(on));
+      parts = buildTile(d.mac);
+      state.cameras.set(d.mac, parts);
+      parts.button.setAttribute("aria-pressed", String(d.mac === state.selected));
     }
-    updateDial(parts, st.kind, d.last_dwell_s ?? 0, d.dwell_s ?? 0);
-    parts.tr.classList.toggle("is-warning", st.kind === "warning");
-    parts.settings.textContent = d.threshold == null && d.dwell_s == null
-      ? "settings unknown"
-      : `\u2265 ${d.threshold == null ? "\u2013" : d.threshold.toFixed(2)} \u00b7 ${d.dwell_s == null ? "\u2013" : d.dwell_s} s`;
-    parts.tdStatus.replaceChildren(statusNode(st));
-    parts.tdConf.textContent = score(d.last_device_score);
-    parts.tdLast.textContent = d.last_seen_ts == null ? "–" : clock(d.last_seen_ts);
-    parts.tdWarn.textContent = d.last_warning_ts ? clock(d.last_warning_ts) : "–";
-    tbody.append(parts.tr); // moves existing rows into sorted order
+    parts.button.dataset.kind = st.kind;
+    fillBadge(parts.badge, st.kind, st.label);
+    let detail = st.detail;
+    if (!detail) {
+      detail = d.threshold != null && d.dwell_s != null
+        ? `Warns after ${d.dwell_s} s at ${d.threshold.toFixed(2)}`
+        : "Settings not reported yet";
+    }
+    parts.detail.textContent = detail;
+    updateMeter(parts, st.kind, d.last_dwell_s ?? 0, d.dwell_s ?? 0);
+    if (d.cooldown_s != null) state.cooldowns.set(d.mac, d.cooldown_s);
+    const scores = [scoreItem("Device", score(d.last_device_score))];
+    if (d.last_conf != null) scores.push(scoreItem("YOLO", score(d.last_conf)));
+    // Home convention: say how fresh the picture is rather than how it is delivered.
+    parts.age.textContent = d.streaming && d.last_ts != null ? ago(d.last_ts) : "Not streaming";
+    scores.push(parts.age);
+    parts.scores.replaceChildren(...scores);
+    parts.button.setAttribute("aria-label", `Camera ${d.mac}: ${st.label}. ${detail}. Show its frames.`);
+    updateTileThumb(d.mac);
+    list.append(parts.li); // moves existing tiles into sorted order
   }
-  for (const [mac, parts] of state.rows) {
-    if (!present.has(mac)) { parts.tr.remove(); state.rows.delete(mac); }
+  for (const [mac, parts] of state.cameras) {
+    if (!present.has(mac)) { parts.li.remove(); state.cameras.delete(mac); }
   }
 
-  $("#devices-empty").hidden = devices.length > 0;
-  const counts = { warning: 0, pedestrian: 0 };
+  $("#cameras-empty").hidden = devices.length > 0;
+  const counts = { total: devices.length, warning: 0, pedestrian: 0, nosignal: 0 };
   for (const { st } of decorated) if (st.kind in counts) counts[st.kind] += 1;
-  const meta = [`${devices.length} ${devices.length === 1 ? "device" : "devices"}`];
-  if (counts.pedestrian) meta.push(`${counts.pedestrian} with pedestrian`);
-  if (counts.warning) meta.push(`${counts.warning} warning`);
-  $("#devices-meta").textContent = meta.join(" · ");
+  state.summary = counts;
+  $("#cameras-meta").textContent = devices.length ? `${devices.length} ${devices.length === 1 ? "camera" : "cameras"}` : "";
+  renderSummary();
   return decorated;
 }
 
-/* ---------- frames: one strip per device, newest on the left ---------- */
+/* ---------- hero: the latest warning ---------- */
+
+function renderBoardTiming() {
+  const a = state.newestAlert;
+  if (!a) return;
+  const board = $("#board");
+  const active = warningIsCurrent(a);
+  const next = active ? "active" : "archived";
+  if (board.dataset.state !== next) {
+    board.dataset.state = next;
+    $("#board-title").textContent = active ? "Pedestrian warning" : "Last warning";
+    fillBadge($("#board-badge"), active ? "warning" : "past", active ? "Warning now" : "Earlier");
+  }
+  $("#board-ago").textContent = ago(a.ts);
+}
+
+function renderBoard(alerts) {
+  const board = $("#board");
+  const a = alerts[0] || null;
+  state.newestAlert = a;
+  if (!a) {
+    board.dataset.state = "empty";
+    $("#board-title").textContent = "No warnings yet";
+    $("#board-photo").hidden = true;
+    $("#board-placeholder").hidden = false;
+    $("#board-badge").hidden = true;
+    $("#board-time-wrap").hidden = true;
+    $("#board-facts").hidden = true;
+    $("#board-note").hidden = false;
+    state.newestAlertId = null;
+    return;
+  }
+  $("#board-note").hidden = true;
+  $("#board-badge").hidden = false;
+  $("#board-time-wrap").hidden = false;
+  $("#board-facts").hidden = false;
+  if (a.id === state.newestAlertId) { renderBoardTiming(); return; }
+
+  const first = state.newestAlertId === null;
+  state.newestAlertId = a.id;
+  $("#board-time").textContent = clock(a.ts);
+  $("#board-camera").textContent = a.mac;
+  $("#board-dwell").textContent = secs(a.dwell_s);
+  $("#board-score").textContent = a.max_conf.toFixed(2);
+  const photo = $("#board-photo");
+  if (a.snapshot_url) {
+    const img = el("img");
+    img.alt = `Snapshot from camera ${a.mac} at ${clock(a.ts)}`;
+    img.src = a.snapshot_url;
+    photo.replaceChildren(img);
+    photo.hidden = false;
+    $("#board-placeholder").hidden = true;
+    photo.setAttribute("aria-label", `Enlarge snapshot from camera ${a.mac} at ${clock(a.ts)}`);
+    photo.onclick = () => openViewer(a.snapshot_url, `Warning from camera ${a.mac} at ${clock(a.ts)}, in view ${secs(a.dwell_s)}`);
+  } else {
+    photo.replaceChildren();
+    photo.hidden = true;
+    $("#board-placeholder").hidden = false;
+  }
+  board.dataset.state = "";
+  renderBoardTiming();
+  if (!first && board.dataset.state === "active") {
+    board.classList.remove("is-arriving");
+    board.getBoundingClientRect();
+    board.classList.add("is-arriving");
+  }
+}
+
+/* ---------- recent warnings ---------- */
+
+function renderLog(alerts) {
+  const earlier = alerts.slice(1, 1 + LOG_SIZE);
+  const items = earlier.map((a) => {
+    const li = el("li");
+    const button = el("button", "row");
+    button.type = "button";
+    const caption = `Warning from camera ${a.mac} at ${clock(a.ts)}, in view ${secs(a.dwell_s)}`;
+    button.setAttribute("aria-label", `Enlarge snapshot: ${caption}`);
+    if (a.snapshot_url) {
+      const img = el("img", "row__thumb");
+      img.alt = "";
+      img.loading = "lazy";
+      img.src = a.snapshot_url;
+      button.append(img);
+      button.addEventListener("click", () => openViewer(a.snapshot_url, caption));
+    } else {
+      button.append(el("span", "row__thumb"));
+      button.disabled = true;
+    }
+    const main = el("span", "row__main");
+    main.append(el("span", "row__time", clock(a.ts)), el("span", "row__camera", a.mac));
+    const dwell = el("span", "row__num");
+    dwell.append(el("b", "", secs(a.dwell_s)), document.createTextNode("in view"));
+    const conf = el("span", "row__num row__num--score");
+    conf.append(el("b", "", a.max_conf.toFixed(2)), document.createTextNode("score"));
+    button.append(main, dwell, conf);
+    li.append(button);
+    return li;
+  });
+  $("#log").replaceChildren(...items);
+  $("#log-empty").hidden = earlier.length > 0;
+  fitLog();
+}
+
+// Show only whole rows; say how many older warnings did not fit.
+function fitLog() {
+  const list = $("#log");
+  const rows = [...list.children];
+  rows.forEach((li) => { li.hidden = false; });
+  const more = $("#log-more");
+  more.hidden = true;
+  if (list.scrollHeight <= list.clientHeight + 1) return;
+  more.hidden = false; // reserve its line before measuring
+  const bottom = list.getBoundingClientRect().bottom;
+  let hiddenCount = 0;
+  for (const li of rows) {
+    if (li.getBoundingClientRect().bottom > bottom + 0.5) { li.hidden = true; hiddenCount += 1; }
+  }
+  more.textContent = `${hiddenCount} older ${hiddenCount === 1 ? "warning" : "warnings"} not shown`;
+  more.hidden = hiddenCount === 0;
+}
+
+/* ---------- frames: one reel per camera, newest on the left ---------- */
+
+function noteThumb(r) {
+  const cur = state.thumbs.get(r.mac);
+  if (!cur || r.id > cur.id) {
+    state.thumbs.set(r.mac, { id: r.id, url: r.thumb_url });
+    updateTileThumb(r.mac);
+  }
+}
 
 function frameItem(r, img) {
   const li = el("li", "frame");
   li.dataset.id = String(r.id);
   if (r.alerted) li.classList.add("frame--warning");
-  if (r.positive) li.classList.add("frame--positive");
 
   const button = el("button", "frame__image");
   button.type = "button";
-  button.setAttribute("aria-label", `Enlarge frame from ${r.mac} at ${clock(r.ts)}`);
+  button.setAttribute("aria-label", `Enlarge frame from camera ${r.mac} at ${clock(r.ts)}`);
   button.append(img);
-  if (r.alerted) {
-    const stamp = el("span", "frame__stamp");
-    stamp.append(warnIcon(), document.createTextNode("Warning"));
-    button.append(stamp);
-  }
-  const caption = `${r.mac} · ${clock(r.ts)} · YOLO ${conf(r.conf)} · device ${score(r.device_score)}`;
+  if (r.alerted) button.append(fillBadge(el("span", "badge"), "warning", "Warning"));
+  const caption = `Camera ${r.mac} at ${clock(r.ts)}: YOLO ${score(r.conf)}, device ${score(r.device_score)}`;
   button.addEventListener("click", () => openViewer(r.thumb_url, caption));
   li.append(button);
 
   const meta = el("div", "frame__meta");
-  meta.append(el("span", "frame__time", clock(r.ts)), el("span", "frame__conf", conf(r.conf)));
-  const bar = el("span", "conf-bar");
-  const fill = el("span");
-  fill.style.width = `${Math.round(Math.min(1, Math.max(0, r.conf)) * 100)}%`;
-  bar.append(fill);
-  meta.append(bar);
-  const statusText = `${r.positive ? `Pedestrian · ${secs(r.dwell_s)}` : "Clear"} · device ${score(r.device_score)}`;
-  meta.append(el("span", `frame__status${r.positive ? " frame__status--pedestrian" : ""}`, statusText));
+  const flag = el("span", `frame__flag${r.positive ? " frame__flag--pedestrian" : ""}`);
+  if (r.positive) flag.append(useIcon("i-walk").icon, document.createTextNode(secs(r.dwell_s)));
+  else flag.textContent = "Clear";
+  const scores = el("span", "frame__scores");
+  scores.append(scoreItem("YOLO", score(r.conf)), scoreItem("Device", score(r.device_score)));
+  meta.append(el("span", "frame__time", clock(r.ts)), flag, scores);
   li.append(meta);
   return li;
 }
 
 function buildStrip(mac) {
-  const section = el("section", "strip");
-  section.setAttribute("aria-label", `Frames from device ${mac}`);
-  const head = el("div", "strip__head");
-  const state_ = el("span", "strip__state");
-  head.append(el("span", "", mac), state_);
-  const list = el("ol", "strip__frames");
+  const section = el("section", "reel");
+  section.setAttribute("aria-label", `Frames from camera ${mac}`);
+  const head = el("div", "reel-head");
+  const badge = el("span", "badge");
+  head.append(el("span", "reel-head__name", mac), badge);
+  const list = el("ol", "frame-list");
   section.append(head, list);
-  return { section, head, stateEl: state_, list, ids: new Set(), loaded: false };
+  return { section, badge, list, ids: new Set(), loaded: false };
 }
 
 async function addFrames(strip, rows) {
-  // Decode every thumbnail before it enters the strip so no tile shows blank.
+  // Decode every thumbnail before it enters the reel so no tile shows blank.
   const fresh = rows.filter((r) => !strip.ids.has(r.id));
   const ready = await Promise.all(fresh.map(async (r) => {
     const img = el("img");
@@ -332,12 +475,12 @@ async function addFrames(strip, rows) {
 }
 
 function visibleSlots(strip) {
-  if (strip.section.classList.contains("strip--expanded")) return Infinity;
+  if (strip.section.classList.contains("reel--expanded")) return Infinity;
   const cols = getComputedStyle(strip.list).gridTemplateColumns.split(" ").filter(Boolean).length;
   return Math.max(1, cols);
 }
 
-// Tiles clipped out of a collapsed strip must not take focus or reach the accessibility tree.
+// Tiles clipped out of a collapsed reel must not take focus or reach the accessibility tree.
 function syncInert(strip) {
   const visible = visibleSlots(strip);
   [...strip.list.children].forEach((li, i) => { li.inert = i >= visible; });
@@ -346,7 +489,7 @@ function syncInert(strip) {
 function renderStripVisibility() {
   for (const [mac, strip] of state.strips) {
     strip.section.hidden = Boolean(state.selected) && mac !== state.selected;
-    strip.section.classList.toggle("strip--expanded", mac === state.selected);
+    strip.section.classList.toggle("reel--expanded", mac === state.selected);
     syncInert(strip);
   }
 }
@@ -356,21 +499,23 @@ async function renderStrips(decorated) {
   const present = new Set();
   const backfills = [];
   for (const { d, st } of decorated) {
-    if (!d.count) continue; // not streaming: no frames to show
+    if (!d.count) continue; // never streamed: no frames to show
     present.add(d.mac);
     let strip = state.strips.get(d.mac);
     if (!strip) {
       strip = buildStrip(d.mac);
       state.strips.set(d.mac, strip);
     }
-    strip.stateEl.textContent = st.detail ? `${st.label} · ${st.detail}` : st.label;
-    strip.head.classList.toggle("is-warning", st.kind === "warning");
-    // Strips keep the order devices first appeared in, so photos never jump when a status changes.
+    fillBadge(strip.badge, st.kind, st.label);
+    // Reels keep the order cameras first appeared in, so photos never jump when a status changes.
     if (!strip.section.isConnected) container.append(strip.section);
     if (!strip.loaded) {
       strip.loaded = true;
       const params = new URLSearchParams({ mac: d.mac, limit: String(FRAMES_PER_DEVICE) });
-      backfills.push(getJSON(`/api/inferences?${params}`).then((rows) => addFrames(strip, rows)));
+      backfills.push(getJSON(`/api/inferences?${params}`).then((rows) => {
+        rows.forEach(noteThumb);
+        return addFrames(strip, rows);
+      }));
     }
   }
   for (const [mac, strip] of state.strips) {
@@ -387,36 +532,13 @@ async function pollNewFrames() {
   const byMac = new Map();
   for (const r of rows) {
     state.lastId = Math.max(state.lastId, r.id);
+    noteThumb(r);
     const strip = state.strips.get(r.mac);
     if (!strip) continue; // its backfill will load it
     if (!byMac.has(r.mac)) byMac.set(r.mac, []);
     byMac.get(r.mac).push(r);
   }
   await Promise.all([...byMac].map(([mac, list]) => addFrames(state.strips.get(mac), list)));
-}
-
-/* ---------- warnings ---------- */
-
-function renderWarnings(alerts) {
-  const tbody = $("#warnings");
-  tbody.replaceChildren();
-  for (const a of alerts) {
-    const tr = el("tr");
-    tr.append(el("td", "", clock(a.ts)), el("td", "device-id", a.mac), el("td", "num", secs(a.dwell_s)), el("td", "num hide-sm", conf(a.max_conf)));
-    const td = el("td", "num");
-    if (a.snapshot_url) {
-      const view = el("button", "button button--quiet", "View");
-      view.type = "button";
-      view.setAttribute("aria-label", `View snapshot of warning at ${clock(a.ts)} from ${a.mac}`);
-      view.addEventListener("click", () => openViewer(a.snapshot_url, `Warning · ${a.mac} · ${clock(a.ts)} · dwell ${secs(a.dwell_s)}`));
-      td.append(view);
-    } else {
-      td.append(el("span", "status__detail", "No image"));
-    }
-    tr.append(td);
-    tbody.append(tr);
-  }
-  $("#warnings-empty").hidden = alerts.length > 0;
 }
 
 /* ---------- viewer ---------- */
@@ -450,25 +572,38 @@ function every(ms, fn) {
 
 async function pollStatus() {
   if (!state.cfgLoaded) await loadConfig();
-  const decorated = renderDevices(await getJSON("/api/devices"));
+  const decorated = renderCameras(await getJSON("/api/devices"));
   await renderStrips(decorated);
   await pollNewFrames();
 }
 
+async function pollWarnings() {
+  const alerts = await getJSON(`/api/alerts?limit=${LOG_SIZE + 1}`);
+  renderBoard(alerts);
+  renderLog(alerts);
+  renderSummary();
+}
+
 function init() {
-  startStationClock();
   renderLinkState();
+  tick();
+  setInterval(tick, 1000);
   $("#pause").addEventListener("click", (e) => {
     state.paused = !state.paused;
     e.currentTarget.setAttribute("aria-pressed", String(state.paused));
-    e.currentTarget.textContent = state.paused ? "Resume" : "Pause";
+    $("#pause-label").textContent = state.paused ? "Resume" : "Pause";
+    $("#pause-icon").setAttribute("href", state.paused ? "#i-play" : "#i-pause");
     renderLinkState();
   });
-  $("#show-all").addEventListener("click", () => selectDevice(state.selected));
+  $("#show-all").addEventListener("click", () => selectCamera(state.selected));
   $("#viewer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-  window.addEventListener("resize", () => { for (const strip of state.strips.values()) syncInert(strip); });
+  $("#board").addEventListener("animationend", (e) => e.currentTarget.classList.remove("is-arriving"));
+  window.addEventListener("resize", () => {
+    for (const strip of state.strips.values()) syncInert(strip);
+    fitLog();
+  });
   every(POLL_MS, pollStatus);
-  every(WARNINGS_MS, async () => renderWarnings(await getJSON("/api/alerts")));
+  every(WARNINGS_MS, pollWarnings);
 }
 
 init();

@@ -3,102 +3,130 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
+  <meta name="color-scheme" content="light dark">
   <title>Pedestrian warnings</title>
   <link rel="icon" href="data:,">
+  <link rel="preload" href="/static/fonts/Inter-wght.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="band">
-    <div class="band__id">
-      <svg class="clock" id="station-clock" viewBox="0 0 100 100" aria-hidden="true">
-        <circle class="clock__face" cx="50" cy="50" r="47"></circle>
-        <g class="clock__ticks" id="station-ticks"></g>
-        <line class="clock__hour" id="hand-hour" x1="50" y1="58" x2="50" y2="27"></line>
-        <line class="clock__minute" id="hand-minute" x1="50" y1="60" x2="50" y2="12"></line>
-        <g class="clock__second" id="hand-second">
-          <line x1="50" y1="66" x2="50" y2="24"></line>
-          <circle cx="50" cy="24" r="6.5"></circle>
-        </g>
-      </svg>
-      <p class="band__time"><time id="now">--:--:--</time></p>
+  <svg class="sprite" aria-hidden="true" focusable="false">
+    <symbol id="i-walk" viewBox="0 0 24 24">
+      <circle cx="13.6" cy="3.6" r="2.1" fill="currentColor"/>
+      <path fill="currentColor" d="M11.4 7.1c.6-.5 1.3-.6 2-.5l1.5.3c.8.2 1.4.7 1.7 1.4l1.1 2.7 2.4 1.1c.6.3.9 1 .6 1.6-.3.6-1 .8-1.6.5l-2.8-1.3a1.3 1.3 0 0 1-.6-.7l-.4-1-.9 3.8 2.6 2.8c.2.2.3.4.3.7l.6 4.6a1.2 1.2 0 0 1-2.4.3l-.5-4.2-2.4-2.4-1 3.8c-.1.3-.2.5-.4.7l-3.4 3a1.2 1.2 0 0 1-1.6-1.8l3.1-2.7 1.9-7.8-1.5.9-1.2 2.7a1.2 1.2 0 0 1-2.2-1l1.4-3c.1-.3.3-.5.6-.6Z"/>
+    </symbol>
+    <symbol id="i-alert" viewBox="0 0 24 24">
+      <path fill="currentColor" d="M10.3 3.6a2 2 0 0 1 3.4 0l8.1 14a2 2 0 0 1-1.7 3H3.9a2 2 0 0 1-1.7-3l8.1-14Z"/>
+      <path d="M12 9v4.5" stroke="var(--icon-mark)" stroke-width="2.2" stroke-linecap="round"/>
+      <circle cx="12" cy="17" r="1.25" fill="var(--icon-mark)"/>
+    </symbol>
+    <symbol id="i-check" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" fill="currentColor"/>
+      <path d="m7.5 12.3 3 3 6-6.3" fill="none" stroke="var(--icon-mark)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-offline" viewBox="0 0 24 24">
+      <path d="M2.5 8.8a14 14 0 0 1 4.3-2.6M10 5.2a14 14 0 0 1 11.5 3.6M5.6 12.3a9 9 0 0 1 3.2-2M13.3 9.6a9 9 0 0 1 5.1 2.7M9 15.7a4.5 4.5 0 0 1 6 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="12" cy="19.2" r="1.4" fill="currentColor"/>
+      <path d="m3.5 3.5 17 17" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    </symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24">
+      <rect x="2.5" y="6" width="13.5" height="12" rx="3" fill="none" stroke="currentColor" stroke-width="1.8"/>
+      <path d="m16 10.5 4.2-2.6c.6-.4 1.3 0 1.3.7v6.8c0 .7-.7 1.1-1.3.7L16 13.5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+    </symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24">
+      <rect x="6.5" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/>
+      <rect x="13.9" y="5" width="3.6" height="14" rx="1.2" fill="currentColor"/>
+    </symbol>
+    <symbol id="i-play" viewBox="0 0 24 24">
+      <path d="M8 5.4v13.2c0 .8.9 1.3 1.6.9l10.2-6.6c.6-.4.6-1.3 0-1.7L9.6 4.5C8.9 4.1 8 4.6 8 5.4Z" fill="currentColor"/>
+    </symbol>
+  </svg>
+
+  <header class="topbar">
+    <div class="topbar__brand">
       <h1>Pedestrian warnings</h1>
+      <p class="topbar__summary" id="summary">Connecting to the server</p>
     </div>
-    <dl class="settings" id="settings" aria-label="Server settings">
-      <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
-      <div><dt>History</dt><dd id="set-history">–</dd></div>
-    </dl>
-    <div class="band__controls">
-      <p class="link-state" id="link-state" role="status">Connecting</p>
-      <button class="button" id="pause" type="button" aria-pressed="false">Pause</button>
+    <div class="topbar__right">
+      <p class="live" id="link-state" role="status">Connecting</p>
+      <time class="topbar__clock" id="now">--:--:--</time>
+      <button class="pill-button" id="pause" type="button" aria-pressed="false">
+        <svg class="icon" aria-hidden="true"><use id="pause-icon" href="#i-pause"/></svg>
+        <span id="pause-label">Pause</span>
+      </button>
     </div>
   </header>
 
   <div class="banner" id="banner" role="alert" hidden>
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 10v5M12 18v.01"></path></svg>
-    <span>Server unreachable. Retrying every 2 seconds; the clock stops until data returns.</span>
+    <svg class="icon" aria-hidden="true"><use href="#i-offline"/></svg>
+    <span>Can't reach the server. Retrying every 2 seconds; showing the last data received.</span>
   </div>
 
-  <main class="layout">
-    <div class="status-column">
-    <section class="pane pane--devices" aria-labelledby="devices-h">
-      <div class="pane__head">
-        <h2 id="devices-h">Devices</h2>
-        <p class="pane__meta" id="devices-meta"></p>
+  <main class="dash">
+    <section class="card hero" id="board" data-state="loading" aria-labelledby="board-title" aria-live="polite">
+      <div class="hero__media">
+        <button class="hero__photo" id="board-photo" type="button" hidden></button>
+        <div class="hero__placeholder" id="board-placeholder">
+          <svg class="hero__placeholder-icon" aria-hidden="true"><use href="#i-check"/></svg>
+        </div>
+        <p class="badge hero__badge" id="board-badge" hidden></p>
       </div>
-      <table class="timetable timetable--devices">
-        <thead>
-          <tr>
-            <th scope="col" class="col-dial"><span class="visually-hidden">Dwell dial</span></th>
-            <th scope="col">Device</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="num">Score</th>
-            <th scope="col" class="num hide-sm">Last seen</th>
-            <th scope="col" class="num hide-sm">Last warning</th>
-          </tr>
-        </thead>
-        <tbody id="devices"></tbody>
-      </table>
-      <p class="empty" id="devices-empty">No devices yet. A device appears here within 2 seconds of its first status message reaching master.app.</p>
+      <div class="hero__body">
+        <div class="hero__heading">
+          <h2 class="hero__title" id="board-title">Loading warnings</h2>
+          <p class="hero__time" id="board-time-wrap" hidden><time id="board-time"></time> <span class="hero__ago" id="board-ago"></span></p>
+        </div>
+        <dl class="stats" id="board-facts" hidden>
+          <div><dt>Camera</dt><dd id="board-camera"></dd></div>
+          <div><dt>Lingered</dt><dd id="board-dwell"></dd></div>
+          <div><dt>Score</dt><dd id="board-score"></dd></div>
+        </dl>
+        <p class="hero__note" id="board-note" hidden>A camera warns when someone stays in its view longer than its dwell time. The newest warning appears here with its snapshot.</p>
+      </div>
     </section>
 
-    <section class="pane pane--warnings" aria-labelledby="warnings-h">
-      <div class="pane__head">
-        <h2 id="warnings-h">Warnings</h2>
-      </div>
-      <table class="timetable timetable--warnings">
-        <thead>
-          <tr>
-            <th scope="col">Time</th>
-            <th scope="col">Device</th>
-            <th scope="col" class="num">Dwell</th>
-            <th scope="col" class="num hide-sm">Max score</th>
-            <th scope="col"><span class="visually-hidden">Snapshot</span></th>
-          </tr>
-        </thead>
-        <tbody id="warnings"></tbody>
-      </table>
-      <p class="empty" id="warnings-empty">No warnings yet. A warning fires when a pedestrian stays in view for the dwell time.</p>
-    </section>
+    <div class="side">
+      <section class="card panel" aria-labelledby="cameras-h">
+        <div class="panel__head">
+          <h2 id="cameras-h">Cameras</h2>
+          <p class="panel__meta" id="cameras-meta"></p>
+        </div>
+        <ul class="tiles" id="cameras"></ul>
+        <p class="empty" id="cameras-empty">No cameras yet. A camera appears within 2 seconds of its first status message.</p>
+      </section>
+
+      <section class="card panel" aria-labelledby="log-h">
+        <div class="panel__head">
+          <h2 id="log-h">Recent warnings</h2>
+        </div>
+        <ol class="rows" id="log"></ol>
+        <p class="rows__more" id="log-more" hidden></p>
+        <p class="empty" id="log-empty">Earlier warnings appear here, newest first.</p>
+      </section>
     </div>
-
-    <section class="pane pane--frames" aria-labelledby="frames-h">
-      <div class="pane__head">
-        <h2 id="frames-h">Frames</h2>
-        <p class="pane__meta" id="frames-scope">All devices</p>
-        <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
-      </div>
-      <div class="strips" id="strips"></div>
-      <p class="empty" id="frames-empty" hidden>No frames. Frames appear only for devices in stream mode: python -m master.cli start &lt;id&gt;.</p>
-    </section>
-
   </main>
 
-  <dialog class="viewer" id="viewer">
+  <section class="frames" id="frames" aria-labelledby="frames-h">
+    <div class="card frames__card">
+      <div class="panel__head frames__head">
+        <h2 id="frames-h">Frames</h2>
+        <p class="panel__meta" id="frames-scope">All cameras</p>
+        <button class="pill-button pill-button--quiet" id="show-all" type="button" hidden>Show all cameras</button>
+        <dl class="server-settings" aria-label="Server settings">
+          <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
+          <div><dt>History</dt><dd id="set-history">–</dd></div>
+        </dl>
+      </div>
+      <div class="reels" id="strips"></div>
+      <p class="empty" id="frames-empty" hidden>No frames yet. Cameras send frames only in stream mode: <code>python -m master.cli start &lt;id&gt;</code></p>
+    </div>
+  </section>
+
+  <dialog class="viewer" id="viewer" aria-labelledby="viewer-caption">
     <div class="viewer__media" id="viewer-media"></div>
     <div class="viewer__bar">
       <p id="viewer-caption"></p>
-      <form method="dialog"><button class="button" type="submit">Close</button></form>
+      <form method="dialog"><button class="pill-button" type="submit">Close</button></form>
     </div>
   </dialog>
 
