@@ -19,8 +19,14 @@ services:
   mosquitto:
     image: eclipse-mosquitto:2
     restart: unless-stopped
+    entrypoint: ["sh", "/mosquitto/config/entrypoint.sh"]
+    environment:
+      MQTT_USER: ${MQTT_USER:?set MQTT_USER in .env}
+      MQTT_PASS: ${MQTT_PASS:?set MQTT_PASS in .env}
+      DEVICE_CREDENTIALS: ${DEVICE_CREDENTIALS:?set DEVICE_CREDENTIALS in .env}
     volumes:
       - ./deploy/mosquitto.docker.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./deploy/mosquitto-entrypoint.sh:/mosquitto/config/entrypoint.sh:ro
       - mosquitto-data:/mosquitto/data
     networks: [internal, cloudflared-net]
 
@@ -31,8 +37,8 @@ services:
     environment:
       MQTT_HOST: ${MQTT_HOST:-mosquitto}
       MQTT_PORT: ${MQTT_PORT:-1883}
-      MQTT_USER: ${MQTT_USER:-}
-      MQTT_PASS: ${MQTT_PASS:-}
+      MQTT_USER: ${MQTT_USER:?set MQTT_USER in .env}
+      MQTT_PASS: ${MQTT_PASS:?set MQTT_PASS in .env}
       DEVICE: ${DEVICE:-cpu}
       PEDESTRIAN_CONF_THRESHOLD: ${PEDESTRIAN_CONF_THRESHOLD:-0.6}
       INFERENCE_HISTORY: ${INFERENCE_HISTORY:-200}

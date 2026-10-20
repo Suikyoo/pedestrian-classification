@@ -122,6 +122,17 @@ docker compose up -d --build
 docker compose exec master python -m master.cli status <mac>
 ```
 
+Mosquitto rejects anonymous clients. Before the first `up`, set in `.env` (see
+`.env.example`):
+
+- `MQTT_USER` and `MQTT_PASS`: the server account, for the master and the CLI.
+- `DEVICE_CREDENTIALS`: one `<device-id>:<password>` pair per device, separated by
+  spaces. Flash each device with the same id and password as *MQTT username* and
+  *MQTT password* in menuconfig. A device may only use topics under its own id.
+
+`deploy/mosquitto-entrypoint.sh` rebuilds the password and ACL files from these at
+every start, so after adding a device run `docker compose up -d --force-recreate mosquitto`.
+
 The image uses CPU-only PyTorch and has `yolo11n.pt` built in. Events and snapshots
 live in the `events` volume, and broker persistence in `mosquitto-data`. Optional
 values (`MQTT_HOST`, `MQTT_PORT`, `DEVICE`, `PEDESTRIAN_CONF_THRESHOLD`, `INFERENCE_HISTORY`, `MQTT_USER`,
@@ -150,7 +161,8 @@ Device URI: `wss://mqtt.<domain>:443/mqtt`.
 
 ## Security warning
 
-`deploy/mosquitto.conf` allows anonymous access. Through the tunnel, **anyone who
+Docker Compose enables authentication (above). The rest of this section is about
+running Mosquitto on a Windows PC, where `deploy/mosquitto.conf` allows anonymous access. Through the tunnel, **anyone who
 knows the hostname can read every camera image and send alert, stop, or reboot
 commands to any device.** Use this only for bench development.
 
