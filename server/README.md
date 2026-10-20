@@ -89,6 +89,28 @@ python tools/fake_device.py --mac 0123456789ab --dir samples --interval 1
 Add `--event` to publish one warning event, and `--no-frames` to act like a device
 with streaming off (status only).
 
+## Run with Docker Compose
+
+`compose.yaml` runs Mosquitto, the master service, and the dashboard. It publishes no
+host ports. `mosquitto` and `web` join the external network `cloudflared-net`, so a
+cloudflared container on that network can route:
+
+| Hostname | Service |
+|---|---|
+| `mqtt.<domain>` (devices: `wss://mqtt.<domain>:443/mqtt`) | `http://mosquitto:9001` |
+| dashboard hostname | `http://web:8000` |
+
+```sh
+docker network create cloudflared-net   # once, if cloudflared has not created it
+docker compose up -d --build
+docker compose exec master python -m master.cli status <mac>
+```
+
+The image uses CPU-only PyTorch and has `yolo11n.pt` built in. Events and snapshots
+live in the `events` volume, and broker persistence in `mosquitto-data`. Optional
+values (`MQTT_HOST`, `MQTT_PORT`, `DEVICE`, `PEDESTRIAN_CONF_THRESHOLD`, `INFERENCE_HISTORY`, `MQTT_USER`,
+`MQTT_PASS`) are read from the environment or `.env` next to `compose.yaml`.
+
 ## Expose the broker with Cloudflare Tunnel
 
 Devices on LTE are behind carrier NAT, so they connect out to a public hostname.

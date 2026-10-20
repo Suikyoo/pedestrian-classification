@@ -1,0 +1,60 @@
+# Server stack: broker, master service, and dashboard. No host ports are published.
+# cloudflared (on the external network cloudflared-net) routes:
+#   wss://mqtt.<domain>  ->  http://mosquitto:9001   (devices)
+#   https://<dashboard>  ->  http://web:8000
+#
+#   docker compose up -d --build
+#   docker compose exec master python -m master.cli status <mac>
+
+name: pedestrian
+
+x-server: &server
+  build: .
+  image: pedestrian-master:latest
+  restart: unless-stopped
+  volumes:
+    - events:/data/events
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    volumes:
+      - ./deploy/mosquitto.docker.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto-data:/mosquitto/data
+    networks: [internal, cloudflared-net]
+
+  master:
+    <<: *server
+    command: ["python", "-m", "master.app"]
+    stop_signal: SIGINT # master.app shuts down cleanly on KeyboardInterrupt
+    environment:
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USER: ${MQTT_USER:-}
+      MQTT_PASS: ${MQTT_PASS:-}
+      DEVICE: ${DEVICE:-cpu}
+      PEDESTRIAN_CONF_THRESHOLD: ${PEDESTRIAN_CONF_THRESHOLD:-0.6}
+      INFERENCE_HISTORY: ${INFERENCE_HISTORY:-200}
+    depends_on: [mosquitto]
+    networks: [internal]
+
+  web:
+    <<: *server
+    command: ["python", "-m", "master.web"]
+    environment:
+      WEB_HOST: 0.0.0.0
+      WEB_PORT: 8000
+      PEDESTRIAN_CONF_THRESHOLD: ${PEDESTRIAN_CONF_THRESHOLD:-0.6}
+      INFERENCE_HISTORY: ${INFERENCE_HISTORY:-200}
+    depends_on: [master]
+    networks: [cloudflared-net]
+
+volumes:
+  events:
+  mosquitto-data:
+
+networks:
+  internal:
+  cloudflared-net:
+    external: true
