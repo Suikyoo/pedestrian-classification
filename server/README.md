@@ -93,12 +93,28 @@ with streaming off (status only).
 
 `compose.yaml` runs Mosquitto, the master service, and the dashboard. It publishes no
 host ports. `mosquitto` and `web` join the external network `cloudflared-net`, so a
-cloudflared container on that network can route:
+cloudflared container on that network serves both on one hostname, split by path:
 
-| Hostname | Service |
+| `pedestrian-classification.suikyoo.xyz` path | Service |
 |---|---|
-| `mqtt.<domain>` (devices: `wss://mqtt.<domain>:443/mqtt`) | `http://mosquitto:9001` |
-| dashboard hostname | `http://web:8000` |
+| `/mqtt` (devices: `wss://pedestrian-classification.suikyoo.xyz:443/mqtt`) | `http://mosquitto:9001` |
+| everything else (dashboard) | `http://web:8000` |
+
+cloudflared ingress (rules match top to bottom):
+
+```yaml
+ingress:
+  - hostname: pedestrian-classification.suikyoo.xyz
+    path: ^/mqtt
+    service: http://mosquitto:9001
+  - hostname: pedestrian-classification.suikyoo.xyz
+    service: http://web:8000
+  - service: http_status:404
+```
+
+In the Cloudflare dashboard, the same is two public hostnames on the tunnel: one with
+path `^/mqtt` to `http://mosquitto:9001`, listed first, and one without a path to
+`http://web:8000`.
 
 ```sh
 docker network create cloudflared-net   # once, if cloudflared has not created it

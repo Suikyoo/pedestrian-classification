@@ -1,7 +1,7 @@
 # Server stack: broker, master service, and dashboard. No host ports are published.
-# cloudflared (on the external network cloudflared-net) routes:
-#   wss://mqtt.<domain>  ->  http://mosquitto:9001   (devices)
-#   https://<dashboard>  ->  http://web:8000
+# cloudflared (on the external network cloudflared-net) routes pedestrian-classification.suikyoo.xyz:
+#   path /mqtt  ->  http://mosquitto:9001   (devices: wss://pedestrian-classification.suikyoo.xyz:443/mqtt)
+#   all else    ->  http://web:8000         (dashboard)
 #
 #   docker compose up -d --build
 #   docker compose exec master python -m master.cli status <mac>
