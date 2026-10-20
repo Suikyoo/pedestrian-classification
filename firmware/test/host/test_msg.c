@@ -1,4 +1,5 @@
 #include "core/msg.h"
+#include <math.h>
 #include "minitest.h"
 
 #define J(s) s, sizeof(s) - 1
@@ -37,11 +38,12 @@ static void test_status(void)
 {
     msg_status_t s = {.rssi = -71, .battery_mv = 0, .uptime_s = 3600, .streaming = true, .fw = "0.1.0",
                       .detect_ok = true, .threshold = 0.6f, .dwell_s = 5.0f, .max_gap_s = 3.0f,
-                      .cooldown_s = 30.0f};
+                      .cooldown_s = 30.0f, .temp_c = 47.3f};
     char buf[256];
     int n = msg_format_status(buf, sizeof buf, &s);
     CHECK_STR(buf, "{\"rssi\":-71,\"battery_mv\":0,\"uptime_s\":3600,\"streaming\":true,\"fw\":\"0.1.0\","
-                   "\"detect_ok\":true,\"threshold\":0.6,\"dwell_s\":5,\"max_gap_s\":3,\"cooldown_s\":30}");
+                   "\"detect_ok\":true,\"threshold\":0.6,\"dwell_s\":5,\"max_gap_s\":3,\"cooldown_s\":30,"
+                   "\"temp_c\":47.3}");
     CHECK_INT(n, (long long)strlen(buf));
 
     s.streaming = false;
@@ -51,6 +53,10 @@ static void test_status(void)
     CHECK(strstr(buf, "\"streaming\":false") != NULL);
     CHECK(strstr(buf, "\"detect_ok\":false") != NULL);
     CHECK(strstr(buf, "\"dwell_s\":0.25") != NULL);
+
+    s.temp_c = NAN;
+    msg_format_status(buf, sizeof buf, &s);
+    CHECK(strstr(buf, "\"temp_c\":null}") != NULL);
 
     char small[16];
     CHECK_INT(msg_format_status(small, sizeof small, &s), -1);

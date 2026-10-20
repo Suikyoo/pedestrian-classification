@@ -66,7 +66,9 @@ esp_err_t net_start(void)
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
-    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_NONE)); /* lower latency for frame uploads */
+    /* Modem sleep: the radio wakes at each DTIM beacon. Uploads start immediately; only
+     * incoming commands wait up to one beacon interval. Cuts radio power and heat. */
+    ESP_ERROR_CHECK(esp_wifi_set_ps(WIFI_PS_MIN_MODEM));
     if (CONFIG_WIFI_SSID[0] == '\0') {
         ESP_LOGE(TAG, "WIFI_SSID is empty: set it in menuconfig > Pedestrian Edge");
     }

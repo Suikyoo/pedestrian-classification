@@ -23,7 +23,7 @@ def _clamp(limit: int) -> int:
 
 
 _STATUS_BOOLS = ("streaming", "detect_ok")
-_STATUS_NUMBERS = ("threshold", "dwell_s", "max_gap_s", "cooldown_s")
+_STATUS_NUMBERS = ("threshold", "dwell_s", "max_gap_s", "cooldown_s", "temp_c")
 
 
 def _status_fields(text: str | None) -> dict:

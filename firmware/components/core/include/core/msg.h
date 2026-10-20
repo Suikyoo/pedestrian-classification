@@ -28,6 +28,7 @@ typedef struct {
     float dwell_s;
     float max_gap_s;
     float cooldown_s;
+    float temp_c;     /* chip temperature in deg C; NAN if the sensor is unavailable (sent as null) */
 } msg_status_t;
 
 /* Format {id}/status JSON. Returns its length, or -1 if it does not fit. */
