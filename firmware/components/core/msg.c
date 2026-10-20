@@ -1,5 +1,6 @@
 #include "core/msg.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -51,13 +52,18 @@ int msg_parse_alert_repeat(const char *json, size_t len)
 
 int msg_format_status(char *buf, size_t len, const msg_status_t *s)
 {
+    char temp[16] = "null";
+    if (isfinite(s->temp_c)) {
+        snprintf(temp, sizeof temp, "%.1f", (double)s->temp_c);
+    }
     int n = snprintf(buf, len,
                      "{\"rssi\":%d,\"battery_mv\":%d,\"uptime_s\":%lu,\"streaming\":%s,\"fw\":\"%s\","
-                     "\"detect_ok\":%s,\"threshold\":%g,\"dwell_s\":%g,\"max_gap_s\":%g,\"cooldown_s\":%g}",
+                     "\"detect_ok\":%s,\"threshold\":%g,\"dwell_s\":%g,\"max_gap_s\":%g,\"cooldown_s\":%g,"
+                     "\"temp_c\":%s}",
                      s->rssi, s->battery_mv, (unsigned long)s->uptime_s,
                      s->streaming ? "true" : "false", s->fw, s->detect_ok ? "true" : "false",
                      (double)s->threshold, (double)s->dwell_s, (double)s->max_gap_s,
-                     (double)s->cooldown_s);
+                     (double)s->cooldown_s, temp);
     return (n > 0 && (size_t)n < len) ? n : -1;
 }
 

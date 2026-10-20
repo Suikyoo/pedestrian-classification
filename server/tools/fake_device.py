@@ -15,7 +15,8 @@ import paho.mqtt.client as mqtt
 from master import protocol
 
 STATUS = {"rssi": -60, "battery_mv": 0, "uptime_s": 0, "streaming": True, "fw": "fake",
-          "detect_ok": True, "threshold": 0.6, "dwell_s": 5, "max_gap_s": 3, "cooldown_s": 30}
+          "detect_ok": True, "threshold": 0.6, "dwell_s": 5, "max_gap_s": 3, "cooldown_s": 30,
+          "temp_c": 48.0}
 
 
 def main() -> None:

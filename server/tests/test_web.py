@@ -34,7 +34,7 @@ def client(root):
 
 
 STATUS = {"rssi": -60, "streaming": True, "detect_ok": True, "threshold": 0.55, "dwell_s": 4.0,
-          "max_gap_s": 3.0, "cooldown_s": 20.0, "fw": "0.2.0"}
+          "max_gap_s": 3.0, "cooldown_s": 20.0, "temp_c": 52.5, "fw": "0.2.0"}
 
 
 def _fill(root):
@@ -96,12 +96,12 @@ def test_devices(client, root):
          "last_ts": 102.0, "last_conf": 0.8, "last_device_score": 0.75, "last_positive": True,
          "last_dwell_s": 2.0, "last_alerted": True,
          "streaming": True, "detect_ok": True, "threshold": 0.55, "dwell_s": 4.0,
-         "max_gap_s": 3.0, "cooldown_s": 20.0, "last_warning_ts": 102.0},
+         "max_gap_s": 3.0, "cooldown_s": 20.0, "temp_c": 52.5, "last_warning_ts": 102.0},
         {"mac": OTHER, "online": False, "last_seen_ts": 101.0, "count": 1,
          "last_ts": 101.0, "last_conf": 0.1, "last_device_score": None, "last_positive": False,
          "last_dwell_s": 0.0, "last_alerted": False,
          "streaming": None, "detect_ok": None, "threshold": None, "dwell_s": None,
-         "max_gap_s": None, "cooldown_s": None, "last_warning_ts": None},
+         "max_gap_s": None, "cooldown_s": None, "temp_c": None, "last_warning_ts": None},
     ]
 
 
@@ -116,7 +116,7 @@ def test_device_without_frames_is_listed(client, root):
 
 
 @pytest.mark.parametrize("status", [
-    '{"threshold":"high","detect_ok":1,"dwell_s":true,"streaming":"yes","cooldown_s":null}',
+    '{"threshold":"high","detect_ok":1,"dwell_s":true,"streaming":"yes","cooldown_s":null,"temp_c":"hot"}',
     "not json",
     "[1, 2]",
     pytest.param('{"threshold":1' + "0" * 400 + "}", id="huge-int"),
@@ -127,7 +127,7 @@ def test_status_fields_type_checked(client, root, status):
     store.update_device(MAC, online=True, status=status, seen_ts=50.0)
     store.close()
     [row] = client.get("/api/devices").json()
-    for key in ("threshold", "detect_ok", "dwell_s", "streaming", "cooldown_s", "max_gap_s"):
+    for key in ("threshold", "detect_ok", "dwell_s", "streaming", "cooldown_s", "max_gap_s", "temp_c"):
         assert row[key] is None
 
 

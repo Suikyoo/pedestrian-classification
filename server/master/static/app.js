@@ -257,6 +257,7 @@ function renderCameras(devices) {
     if (d.cooldown_s != null) state.cooldowns.set(d.mac, d.cooldown_s);
     const scores = [scoreItem("Device", score(d.last_device_score))];
     if (d.last_conf != null) scores.push(scoreItem("YOLO", score(d.last_conf)));
+    if (d.temp_c != null) scores.push(scoreItem("Chip", `${Math.round(d.temp_c)} °C`));
     // Home convention: say how fresh the picture is rather than how it is delivered.
     parts.age.textContent = d.streaming && d.last_ts != null ? ago(d.last_ts) : "Not streaming";
     scores.push(parts.age);
