@@ -95,19 +95,19 @@ with streaming off (status only).
 host ports. `mosquitto` and `web` join the external network `cloudflared-net`, so a
 cloudflared container on that network serves both on one hostname, split by path:
 
-| `pedestrian-classification.suikyoo.xyz` path | Service |
+| `pedestrian-detection.suikyoo.xyz` path | Service |
 |---|---|
-| `/mqtt` (devices: `wss://pedestrian-classification.suikyoo.xyz:443/mqtt`) | `http://mosquitto:9001` |
+| `/mqtt` (devices: `wss://pedestrian-detection.suikyoo.xyz:443/mqtt`) | `http://mosquitto:9001` |
 | everything else (dashboard) | `http://web:8000` |
 
 cloudflared ingress (rules match top to bottom):
 
 ```yaml
 ingress:
-  - hostname: pedestrian-classification.suikyoo.xyz
+  - hostname: pedestrian-detection.suikyoo.xyz
     path: ^/mqtt
     service: http://mosquitto:9001
-  - hostname: pedestrian-classification.suikyoo.xyz
+  - hostname: pedestrian-detection.suikyoo.xyz
     service: http://web:8000
   - service: http_status:404
 ```

@@ -28,7 +28,7 @@ menu "Pedestrian Edge"
 
     config MQTT_URI
         string "MQTT broker URI"
-        default "wss://pedestrian-classification.suikyoo.xyz:443/mqtt"
+        default "wss://pedestrian-detection.suikyoo.xyz:443/mqtt"
         help
             wss://host:443/mqtt through Cloudflare Tunnel, or for bench tests
             directly to the PC: ws://<pc-ip>:9001/mqtt or mqtt://<pc-ip>:1883

@@ -1,6 +1,6 @@
 # Server stack: broker, master service, and dashboard. No host ports are published.
-# cloudflared (on the external network cloudflared-net) routes pedestrian-classification.suikyoo.xyz:
-#   path /mqtt  ->  http://mosquitto:9001   (devices: wss://pedestrian-classification.suikyoo.xyz:443/mqtt)
+# cloudflared (on the external network cloudflared-net) routes pedestrian-detection.suikyoo.xyz:
+#   path /mqtt  ->  http://mosquitto:9001   (devices: wss://pedestrian-detection.suikyoo.xyz:443/mqtt)
 #   all else    ->  http://web:8000         (dashboard)
 #
 #   docker compose up -d --build

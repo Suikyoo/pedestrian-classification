@@ -153,7 +153,7 @@ To try another model without rebuilding:
 
 ### MQTT URI choices
 
-- Through Cloudflare Tunnel: `wss://pedestrian-classification.suikyoo.xyz:443/mqtt` (the default)
+- Through Cloudflare Tunnel: `wss://pedestrian-detection.suikyoo.xyz:443/mqtt` (the default)
 - Bench, straight to the PC's Mosquitto websockets listener: `ws://<pc-ip>:9001/mqtt`
 - Bench, plain MQTT: `mqtt://<pc-ip>:1883`
 
