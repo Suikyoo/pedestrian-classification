@@ -23,9 +23,12 @@ COPY master ./master
 RUN pip install --no-deps . && rm -rf build master
 
 # Bake the YOLO weights into the image: *.pt files are not in git.
+# MODEL defaults to the small variant (nano was too weak on real scenes);
+# override at build time to fall back: docker build --build-arg MODEL=yolo11n.pt
+ARG MODEL=yolo11s.pt
 RUN mkdir -p /opt/models \
     && cd /opt/models \
-    && python -c "from ultralytics import YOLO; YOLO('yolo11n.pt')" \
+    && python -c "from ultralytics import YOLO; YOLO('$MODEL')" \
     && rm -rf /root/.config/Ultralytics
 
 RUN useradd --uid 1000 --create-home app \
@@ -33,7 +36,7 @@ RUN useradd --uid 1000 --create-home app \
     && chown app:app /data/events
 USER app
 
-ENV MODEL_PATH=/opt/models/yolo11n.pt \
+ENV MODEL_PATH=/opt/models/$MODEL \
     EVENTS_DIR=/data/events \
     YOLO_CONFIG_DIR=/home/app/.config
 
