@@ -15,7 +15,6 @@
 static const char *TAG = "event";
 #define EVENT_QUEUE_LEN 4
 #define RETRY_MS 1000
-#define ACK_TIMEOUT_MS 15000
 
 typedef struct {
     uint8_t *data;
@@ -24,9 +23,7 @@ typedef struct {
 
 static pending_t s_queue[EVENT_QUEUE_LEN]; /* s_queue[0] is the oldest */
 static int s_count;
-static bool s_sending; /* s_queue[0] is being published or awaits its PUBACK: never drop it */
-static int s_inflight_id = -1; /* msg id of the pending publish, -1 until publish returns */
-static int64_t s_sent_us;
+static bool s_head_busy; /* s_queue[0] is being queued into the outbox: never drop it */
 static SemaphoreHandle_t s_lock;
 static TaskHandle_t s_task;
 
@@ -66,7 +63,7 @@ void event_raise(float score, uint64_t capture_ms, const uint8_t *jpeg, size_t l
 
     xSemaphoreTake(s_lock, portMAX_DELAY);
     if (s_count == EVENT_QUEUE_LEN) {
-        remove_at(s_sending ? 1 : 0);
+        remove_at(s_head_busy ? 1 : 0);
         ESP_LOGW(TAG, "event queue full: dropped the oldest waiting event");
     }
     s_queue[s_count].data = buf;
@@ -76,68 +73,39 @@ void event_raise(float score, uint64_t capture_ms, const uint8_t *jpeg, size_t l
     xTaskNotifyGive(s_task);
 }
 
-/* Called on the MQTT task when the broker acknowledged a QoS 1 publish. */
-void event_on_published(int msg_id)
-{
-    if (s_lock == NULL) {
-        return;
-    }
-    bool delivered = false;
-    xSemaphoreTake(s_lock, portMAX_DELAY);
-    if (s_sending && s_inflight_id >= 0 && msg_id == s_inflight_id) {
-        remove_at(0);
-        s_sending = false;
-        s_inflight_id = -1;
-        delivered = true;
-    }
-    xSemaphoreGive(s_lock);
-    if (delivered) {
-        ESP_LOGI(TAG, "event delivered");
-        xTaskNotifyGive(s_task); /* send the next one */
-    }
-}
-
 static void event_task(void *arg)
 {
     for (;;) {
         ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(RETRY_MS));
 
-        bool connected = mqtt_link_connected();
+        if (!mqtt_link_connected()) {
+            continue;
+        }
         pending_t head = {NULL, 0};
         xSemaphoreTake(s_lock, portMAX_DELAY);
-        if (s_sending && s_inflight_id >= 0 &&
-            (!connected || esp_timer_get_time() - s_sent_us > (int64_t)ACK_TIMEOUT_MS * 1000)) {
-            /* The head stays queued and is sent again. */
-            s_sending = false;
-            s_inflight_id = -1;
-            ESP_LOGW(TAG, "event not acknowledged, resending");
-        }
-        if (!s_sending && connected && s_count > 0) {
+        if (!s_head_busy && s_count > 0) {
             head = s_queue[0];
             /* Set before releasing the lock so event_raise() cannot drop the head
-             * while it is being published. */
-            s_sending = true;
-            s_inflight_id = -1;
+             * while it is being queued. */
+            s_head_busy = true;
         }
         xSemaphoreGive(s_lock);
         if (head.data == NULL) {
             continue;
         }
 
-        /* Publishing a large JPEG takes a while: do it outside the lock. */
-        int id = mqtt_link_publish("event", head.data, head.len, 1, false);
+        /* QoS 0: no PUBACK round trip; publish() only copies into the MQTT
+         * outbox. The event is done once queued. */
+        int id = mqtt_link_publish("event", head.data, head.len, 0, false);
         xSemaphoreTake(s_lock, portMAX_DELAY);
         if (id >= 0) {
-            s_inflight_id = id;
-            s_sent_us = esp_timer_get_time();
-        } else {
-            s_sending = false;
+            remove_at(0);
+            ESP_LOGI(TAG, "event queued for send");
         }
+        s_head_busy = false;
         xSemaphoreGive(s_lock);
         if (id < 0) {
             ESP_LOGW(TAG, "event publish failed, retrying in %d ms", RETRY_MS);
-        } else {
-            ESP_LOGI(TAG, "event sent, waiting for acknowledgement");
         }
     }
 }
