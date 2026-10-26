@@ -44,8 +44,8 @@ class VerifyWindow:
     def feed(self, ts: float) -> bool:
         if self.start is None or ts - self.last > self.max_gap_s:
             self.start = self.last = ts
-            return False
-        self.last = ts
+        else:
+            self.last = ts
         if self.last - self.start >= self.dwell_s:
             self.reset()
             return True
