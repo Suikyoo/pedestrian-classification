@@ -33,3 +33,26 @@ def test_dashboard_defaults():
     assert s.inference_history == 200
     assert s.web_host == "0.0.0.0"
     assert s.web_port == 8000
+
+
+def test_verify_defaults_without_env_file(monkeypatch):
+    for key in ("PEDESTRIAN_VERIFY_THRESHOLD", "PEDESTRIAN_VERIFY_DWELL_S",
+                "PEDESTRIAN_VERIFY_MAX_GAP_S", "PEDESTRIAN_VERIFY_ALERT_COOLDOWN_S"):
+        monkeypatch.delenv(key, raising=False)
+    s = Settings(_env_file=None)
+    assert s.pedestrian_verify_threshold == 0.8
+    assert s.pedestrian_verify_dwell_s == 5.0
+    assert s.pedestrian_verify_max_gap_s == 3.0
+    assert s.pedestrian_verify_alert_cooldown_s == 5.0
+
+
+def test_verify_reads_env(monkeypatch):
+    monkeypatch.setenv("PEDESTRIAN_VERIFY_THRESHOLD", "0.9")
+    monkeypatch.setenv("PEDESTRIAN_VERIFY_DWELL_S", "6.0")
+    monkeypatch.setenv("PEDESTRIAN_VERIFY_MAX_GAP_S", "2.0")
+    monkeypatch.setenv("PEDESTRIAN_VERIFY_ALERT_COOLDOWN_S", "7.0")
+    s = Settings(_env_file=None)
+    assert s.pedestrian_verify_threshold == 0.9
+    assert s.pedestrian_verify_dwell_s == 6.0
+    assert s.pedestrian_verify_max_gap_s == 2.0
+    assert s.pedestrian_verify_alert_cooldown_s == 7.0

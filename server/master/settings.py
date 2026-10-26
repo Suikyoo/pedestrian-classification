@@ -16,6 +16,13 @@ class Settings(BaseSettings):
     device: str = "cpu"
     # YOLO cutoff for stream-mode frames. Alerts are decided on each device.
     pedestrian_conf_threshold: float = 0.6
+    # Host verification of device alert candidates (see the host-verified
+    # alerts design): confirm cutoff, dwell window, gap that restarts the
+    # window, and minimum time between host alert commands.
+    pedestrian_verify_threshold: float = 0.8
+    pedestrian_verify_dwell_s: float = 5.0
+    pedestrian_verify_max_gap_s: float = 3.0
+    pedestrian_verify_alert_cooldown_s: float = 5.0
     events_dir: Path = Path("./events")
     inference_history: int = 200
     web_host: str = "0.0.0.0"
