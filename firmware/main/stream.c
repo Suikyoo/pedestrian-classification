@@ -5,7 +5,6 @@
 #include "audio.h"
 #include "camera.h"
 #include "config_store.h"
-#include "core/dwell.h"
 #include "core/proto.h"
 #include "detect.h"
 #include "esp_heap_caps.h"
@@ -25,11 +24,14 @@ static const char *TAG = "stream";
 #define MAX_CAPTURE_FAILURES 5
 #define MAX_DETECT_FAILURES 5
 #define SLICE_MS 100
+#define ALERT_THRESHOLD 0.90f /* immediate local alert cutoff; same constant on the host */
+#define ALERT_COOLDOWN_S 5    /* min time between local alerts */
 
 static int s_failures;
 static int s_detect_failures;
 static volatile bool s_detect_ok = true;
-static dwell_t s_dwell;
+static int64_t s_last_event_us;
+static int64_t s_last_local_alert_us;
 
 bool stream_detect_ok(void)
 {
@@ -88,19 +90,25 @@ static void process_frame(const devcfg_t *cfg)
     float score = detect_score(fb->buf, fb->len);
     track_detect(score);
 
-    dwell_params_t p;
-    dwell_params_from_cfg(&p, cfg);
-    dwell_alert_t alert;
-    led_person(score >= p.threshold);
-    if (dwell_update(&s_dwell, &p, esp_timer_get_time() / 1000, score, &alert)) {
-        ESP_LOGI(TAG, "ALERT dwell=%u ms max_score=%.2f",
-                 (unsigned)(alert.alert_ms - alert.first_seen_ms), alert.max_score);
+    int64_t now_us = esp_timer_get_time();
+    bool positive = score >= cfg->threshold;
+    led_person(positive);
+    /* Candidate event per positive frame, rate-capped by cooldown_s. The host
+     * verifies and commands the alert. */
+    if (positive && now_us - s_last_event_us >= (int64_t)cfg->cooldown_s * 1000000) {
+        s_last_event_us = now_us;
+        event_raise(score, capture_ms, fb->buf, fb->len);
+    }
+    /* Escape hatch: very confident local score alerts without the host. */
+    if (score > ALERT_THRESHOLD &&
+        now_us - s_last_local_alert_us >= (int64_t)ALERT_COOLDOWN_S * 1000000) {
+        s_last_local_alert_us = now_us;
+        ESP_LOGI(TAG, "LOCAL ALERT score=%.2f", score);
         led_alert();
         audio_play(1);
-        event_raise(&alert, capture_ms, fb->buf, fb->len);
     }
     if (cfg->streaming && mqtt_link_connected()) {
-        send_frame(fb, capture_ms, score, dwell_current_ms(&s_dwell));
+        send_frame(fb, capture_ms, score, 0);
     }
     camera_return(fb);
 }
@@ -108,7 +116,6 @@ static void process_frame(const devcfg_t *cfg)
 static void stream_task(void *arg)
 {
     ESP_ERROR_CHECK(esp_task_wdt_add(NULL));
-    dwell_init(&s_dwell);
     for (;;) {
         devcfg_t cfg;
         config_store_get(&cfg);

@@ -37,14 +37,13 @@ static void remove_at(int i)
     s_count--;
 }
 
-void event_raise(const dwell_alert_t *a, uint64_t capture_ms, const uint8_t *jpeg, size_t len)
+void event_raise(float score, uint64_t capture_ms, const uint8_t *jpeg, size_t len)
 {
-    uint32_t dwell_ms = (uint32_t)(a->alert_ms - a->first_seen_ms);
     msg_event_t ev = {
         .alert_ms = capture_ms,
-        .first_seen_ms = capture_ms ? capture_ms - dwell_ms : 0,
-        .dwell_s = dwell_ms / 1000.0f,
-        .max_score = a->max_score,
+        .first_seen_ms = capture_ms,
+        .dwell_s = 0.0f,
+        .max_score = score,
     };
     char json[128];
     int n = msg_format_event(json, sizeof json, &ev);
