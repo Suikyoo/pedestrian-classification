@@ -55,9 +55,20 @@ class Clock:
         return self.now
 
 
-def make_app(detector=None, events=None, clock=None):
-    return MasterApp(detector=detector or FakeDetector(), events=events or FakeEvents(),
-                     threshold=0.6, clock=clock or Clock())
+def make_app(detector=None, events=None, clock=None, verify_dwell_s=5.0, verify_max_gap_s=3.0,
+             verify_alert_cooldown_s=5.0):
+    published = []
+
+    def publish(topic, payload):
+        published.append((topic, payload))
+
+    app = MasterApp(detector=detector or FakeDetector(), events=events or FakeEvents(),
+                    threshold=0.6, clock=clock or Clock(),
+                    verify_threshold=0.8, verify_dwell_s=verify_dwell_s,
+                    verify_max_gap_s=verify_max_gap_s,
+                    verify_alert_cooldown_s=verify_alert_cooldown_s, publish=publish)
+    app.published = published
+    return app
 
 
 def send_frame(app, ms=START_MS, score=0.8, dwell_s=1.5, mac=MAC):
@@ -213,3 +224,75 @@ def test_on_message_never_raises(monkeypatch):
 
     monkeypatch.setattr(app, "_on_image", boom)
     app.on_message(f"{MAC}/image", protocol.pack_image(1, b"jpeg"))
+
+
+def candidate_event(ms=START_MS, max_score=0.5):
+    return protocol.pack_event(protocol.DeviceEvent(ms, ms, 0.0, max_score), b"snap")
+
+
+def test_verify_rejects_below_threshold():
+    app = make_app(detector=FakeDetector(conf=0.7))
+    app.on_message(f"{MAC}/event", candidate_event())
+    assert app.events.recorded == [] and app.published == []
+    assert app.events.inferences[0]["device_score"] == 0.5
+
+
+def test_verify_confirms_after_dwell():
+    app = make_app(detector=FakeDetector(conf=0.85))
+    for ms in (START_MS, START_MS + 2000, START_MS + 5000):
+        app.on_message(f"{MAC}/event", candidate_event(ms))
+    assert app.published == [(f"{MAC}/alert", protocol.alert_payload(1))]
+    [rec] = app.events.recorded
+    assert rec["mac"] == MAC and rec["jpeg"] == b"snap" and rec["mark_frame"] is True
+    assert rec["alert"] == Alert(first_seen=START_MS / 1000, ts=(START_MS + 5000) / 1000, max_conf=0.85)
+
+
+def test_verify_gap_restarts_window():
+    app = make_app(detector=FakeDetector(conf=0.85))
+    app.on_message(f"{MAC}/event", candidate_event(START_MS))
+    app.on_message(f"{MAC}/event", candidate_event(START_MS + 7000))
+    assert app.published == [] and app.events.recorded == []
+
+
+def test_verify_unsynced_clock_uses_server_time():
+    app = make_app(detector=FakeDetector(conf=0.85), clock=Clock(1000.0))
+    for t in (1000.0, 1003.0, 1006.0):  # gaps 3 <= 3, span 6 >= 5
+        app.clock.now = t
+        app.on_message(f"{MAC}/event", candidate_event(0))
+    assert app.published == [(f"{MAC}/alert", protocol.alert_payload(1))]
+
+
+def test_verify_legacy_event_records_directly():
+    detector = FakeDetector(conf=0.85)
+    app = make_app(detector=detector)
+    app.on_message(f"{MAC}/event", event_payload())
+    assert detector.calls == 0 and app.published == []
+    [rec] = app.events.recorded
+    assert rec["alert"] == Alert(first_seen=START_MS / 1000, ts=(START_MS + 5000) / 1000, max_conf=0.83)
+
+
+def test_verify_cooldown_gates_second_command():
+    # Dwell 1 s so a second window can confirm inside the 5 s command cooldown.
+    app = make_app(detector=FakeDetector(conf=0.85), clock=Clock(1000.0),
+                   verify_dwell_s=1.0, verify_max_gap_s=3.0)
+    for t in (1000.0, 1001.0):  # first window confirms
+        app.on_message(f"{MAC}/event", candidate_event(0))
+    for t in (1002.0, 1003.0):  # second window confirms 2 s later
+        app.clock.now = t
+        app.on_message(f"{MAC}/event", candidate_event(0))
+    assert len(app.published) == 1
+
+
+def test_verify_immediate_bypass():
+    detector = FakeDetector(conf=0.85)
+    app = make_app(detector=detector)
+    app.on_message(f"{MAC}/event", candidate_event(max_score=0.95))
+    assert detector.calls == 0 and app.published == []
+    [rec] = app.events.recorded
+    assert rec["alert"].max_conf == 0.95
+
+
+def test_verify_fresh_app_never_confirms_stale_window():
+    app = make_app(detector=FakeDetector(conf=0.85))
+    app.on_message(f"{MAC}/event", candidate_event())
+    assert app.published == [] and app.events.recorded == []

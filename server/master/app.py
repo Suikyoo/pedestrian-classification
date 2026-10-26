@@ -1,6 +1,8 @@
 """Master service: records device warnings and status; scores stream-mode frames with YOLO.
 
-Devices decide alerts themselves. The master never publishes {mac}/alert on its own.
+Devices publish alert candidates; the master re-verifies them with its own model plus
+a dwell window and commands the alert back. Legacy firmware events (with device dwell)
+are still recorded directly.
 """
 
 import json
@@ -17,6 +19,8 @@ from master.events import Alert
 
 log = logging.getLogger("master")
 
+ALERT_THRESHOLD = 0.90  # device-side immediate-alert cutoff; same constant as firmware
+
 
 @dataclass(frozen=True)
 class Frame:
@@ -25,6 +29,30 @@ class Frame:
     device_score: float | None
     dwell_s: float
     jpeg: bytes
+
+
+class VerifyWindow:
+    """Dwell window over verified events, in seconds. feed() returns True when the
+    window spans dwell_s; a gap over max_gap_s restarts the window."""
+
+    def __init__(self, dwell_s: float, max_gap_s: float):
+        self.dwell_s = dwell_s
+        self.max_gap_s = max_gap_s
+        self.start: float | None = None
+        self.last: float | None = None
+
+    def feed(self, ts: float) -> bool:
+        if self.start is None or ts - self.last > self.max_gap_s:
+            self.start = self.last = ts
+            return False
+        self.last = ts
+        if self.last - self.start >= self.dwell_s:
+            self.reset()
+            return True
+        return False
+
+    def reset(self) -> None:
+        self.start = self.last = None
 
 
 class FrameSlots:
@@ -48,12 +76,23 @@ class FrameSlots:
 
 
 class MasterApp:
-    def __init__(self, detector, events, threshold: float, clock: Callable[[], float] = time.time):
+    def __init__(self, detector, events, threshold: float, clock: Callable[[], float] = time.time,
+                 verify_threshold: float = 0.8, verify_dwell_s: float = 5.0,
+                 verify_max_gap_s: float = 3.0, verify_alert_cooldown_s: float = 5.0,
+                 publish: Callable[[str, bytes], None] | None = None):
         self.detector = detector
         self.events = events
         self.threshold = threshold  # YOLO cutoff for stream-mode frames
         self.clock = clock
+        self.verify_threshold = verify_threshold
+        self.verify_dwell_s = verify_dwell_s
+        self.verify_max_gap_s = verify_max_gap_s
+        self.verify_alert_cooldown_s = verify_alert_cooldown_s
+        self.publish = publish
         self.slots = FrameSlots()
+        self._verify_windows: dict[str, VerifyWindow] = {}
+        self._verify_synced: dict[str, bool] = {}
+        self._last_command: dict[str, float] = {}
 
     # Called on the MQTT network thread. Must never raise: an exception here
     # stops paho's network loop and the server would stop receiving.
@@ -103,6 +142,51 @@ class MasterApp:
             log.warning("%s: dropping event: %s", mac, e)
             return
         now = self.clock()
+        self._update_device(mac, online=True, seen_ts=now)
+
+        legacy = ev.dwell_s > 0 or ev.first_seen_ms < ev.alert_ms
+        if legacy or ev.max_score > ALERT_THRESHOLD:
+            self._record_warning(mac, ev, jpeg, now)
+            return
+
+        try:
+            conf = self.detector.person_confidence(jpeg)
+        except Exception:
+            log.exception("%s: detection failed, dropping candidate", mac)
+            return
+        synced = ev.alert_ms != 0
+        ts = ev.alert_ms / 1000 if synced else now
+        try:
+            self.events.record_inference(mac, ts, conf, conf >= self.verify_threshold, 0.0,
+                                         False, jpeg, device_score=ev.max_score, match_event=False)
+        except Exception:
+            log.exception("%s: failed to record candidate inference", mac)
+        if conf < self.verify_threshold:
+            return
+
+        window = self._verify_windows.get(mac)
+        if window is None or self._verify_synced.get(mac, True) != synced:
+            # New device or clock source changed mid-run: start a fresh window.
+            window = self._verify_windows[mac] = VerifyWindow(self.verify_dwell_s, self.verify_max_gap_s)
+            self._verify_synced[mac] = synced
+        start = window.start
+        if not window.feed(ts):
+            return
+        first_seen = ts if start is None else start
+        last = self._last_command.get(mac, float("-inf"))
+        if last + self.verify_alert_cooldown_s <= ts:
+            self._last_command[mac] = ts
+            if self.publish is not None:
+                self.publish(protocol.topic(mac, "alert"), protocol.alert_payload(1))
+        log.info("%s VERIFIED dwell=%.1fs host_conf=%.2f device_score=%.2f",
+                 mac, ts - first_seen, conf, ev.max_score)
+        try:
+            self.events.record(mac, Alert(first_seen=first_seen, ts=ts, max_conf=conf),
+                               jpeg, mark_frame=synced)
+        except Exception:
+            log.exception("%s: failed to record verified event", mac)
+
+    def _record_warning(self, mac: str, ev, jpeg: bytes, now: float) -> None:
         if ev.alert_ms:
             alert = Alert(first_seen=ev.first_seen_ms / 1000, ts=ev.alert_ms / 1000, max_conf=ev.max_score)
         else:
@@ -112,7 +196,6 @@ class MasterApp:
             self.events.record(mac, alert, jpeg, mark_frame=ev.alert_ms != 0)
         except Exception:
             log.exception("%s: failed to record event", mac)
-        self._update_device(mac, online=True, seen_ts=now)
 
     def _on_status(self, mac: str, payload: bytes, retained: bool) -> None:
         text = payload.decode("utf-8", "replace")
@@ -195,8 +278,13 @@ def main() -> None:
         detector=Detector(s.model_path, s.device),
         events=EventStore(s.events_dir, history=s.inference_history),
         threshold=s.pedestrian_conf_threshold,
+        verify_threshold=s.pedestrian_verify_threshold,
+        verify_dwell_s=s.pedestrian_verify_dwell_s,
+        verify_max_gap_s=s.pedestrian_verify_max_gap_s,
+        verify_alert_cooldown_s=s.pedestrian_verify_alert_cooldown_s,
     )
     client = connect(app, s.mqtt_host, s.mqtt_port, s.mqtt_user, s.mqtt_pass)
+    app.publish = lambda topic, payload: client.publish(topic, payload, qos=1)
     stop = threading.Event()
     try:
         app.run_worker(stop)
