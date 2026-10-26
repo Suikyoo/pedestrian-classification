@@ -40,10 +40,14 @@ def test_config_rejects_bad_values(args):
         build_message(["config", MAC, *args], None)
 
 
-@pytest.mark.parametrize("mac", ["A1B2C3D4E5F6", "a1:b2:c3:d4:e5:f6", "xyz"])
-def test_rejects_malformed_mac(mac):
+def test_accepts_non_mac_device_id():
+    assert build_message(["alert", "ctu-1"]) == ("ctu-1/alert", protocol.alert_payload(1), 1, False)
+
+
+@pytest.mark.parametrize("mac", ["a/b", "", "/", "a b"])
+def test_rejects_unsafe_ids(mac):
     with pytest.raises(protocol.ProtocolError):
-        build_message(["status", mac])
+        build_message(["alert", mac])
 
 
 def test_retained_config_accepts_object_on_own_topic():

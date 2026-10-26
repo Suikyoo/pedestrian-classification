@@ -16,7 +16,7 @@ import paho.mqtt.client as mqtt
 from master import protocol
 from master.settings import Settings
 
-_MAC_RE = re.compile(r"^[0-9a-f]{12}$")
+_MAC_RE = re.compile(r"^[^/ ]+$")
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -36,7 +36,7 @@ def _parser() -> argparse.ArgumentParser:
 def build_message(argv: list[str], current_config: dict | None = None) -> tuple[str, bytes, int, bool]:
     args = _parser().parse_args(argv)
     if not _MAC_RE.match(args.mac):
-        raise protocol.ProtocolError(f"mac must be 12 lowercase hex digits, got {args.mac!r}")
+        raise protocol.ProtocolError(f"device id must be non-empty without '/' or spaces, got {args.mac!r}")
     if args.command == "alert":
         return protocol.topic(args.mac, "alert"), protocol.alert_payload(args.repeat), 1, False
     if args.command == "config":
