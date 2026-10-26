@@ -28,7 +28,11 @@ services:
       - ./deploy/mosquitto.docker.conf:/mosquitto/config/mosquitto.conf:ro
       - ./deploy/mosquitto-entrypoint.sh:/mosquitto/config/entrypoint.sh:ro
       - mosquitto-data:/mosquitto/data
-    networks: [internal, cloudflared-net]
+    networks:
+      internal:
+      cloudflared-net:
+        aliases:
+          - pedestrian-mosquitto
 
   master:
     <<: *server
@@ -58,7 +62,10 @@ services:
       PEDESTRIAN_CONF_THRESHOLD: ${PEDESTRIAN_CONF_THRESHOLD:-0.6}
       INFERENCE_HISTORY: ${INFERENCE_HISTORY:-200}
     depends_on: [master]
-    networks: [cloudflared-net]
+    networks:
+      cloudflared-net:
+        aliases:
+          - pedestrian-web
 
 volumes:
   events:
