@@ -93,6 +93,7 @@ class MasterApp:
         self._verify_windows: dict[str, VerifyWindow] = {}
         self._verify_synced: dict[str, bool] = {}
         self._last_command: dict[str, float] = {}
+        self._last_bypass: dict[str, float] = {}
 
     # Called on the MQTT network thread. Must never raise: an exception here
     # stops paho's network loop and the server would stop receiving.
@@ -145,8 +146,16 @@ class MasterApp:
         self._update_device(mac, online=True, seen_ts=now)
 
         legacy = ev.dwell_s > 0 or ev.first_seen_ms < ev.alert_ms
-        if legacy or ev.max_score > ALERT_THRESHOLD:
+        if legacy:
             self._record_warning(mac, ev, jpeg, now)
+            return
+        if ev.max_score > ALERT_THRESHOLD:
+            # Device already alerted. Record at most once per cooldown so a
+            # person staying close does not flood the warning list.
+            ts = ev.alert_ms / 1000 if ev.alert_ms else now
+            if self._last_bypass.get(mac, float("-inf")) + self.verify_alert_cooldown_s <= ts:
+                self._last_bypass[mac] = ts
+                self._record_warning(mac, ev, jpeg, now)
             return
 
         try:

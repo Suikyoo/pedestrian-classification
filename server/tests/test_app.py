@@ -298,6 +298,16 @@ def test_verify_zero_dwell_confirms_on_first_event():
     assert app.published == [(f"{MAC}/alert", protocol.alert_payload(1))]
 
 
+def test_verify_immediate_bypass_records_once_per_cooldown():
+    detector = FakeDetector(conf=0.85)
+    app = make_app(detector=detector, clock=Clock(1000.0))
+    app.on_message(f"{MAC}/event", candidate_event(ms=0, max_score=0.95))
+    app.clock.now = 1001.0
+    app.on_message(f"{MAC}/event", candidate_event(ms=0, max_score=0.95))
+    assert detector.calls == 0 and app.published == []
+    assert len(app.events.recorded) == 1
+
+
 def test_verify_fresh_app_never_confirms_stale_window():
     app = make_app(detector=FakeDetector(conf=0.85))
     app.on_message(f"{MAC}/event", candidate_event())
