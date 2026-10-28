@@ -144,6 +144,21 @@ live in the `events` volume, and broker persistence in `mosquitto-data`. Optiona
 values (`MQTT_HOST`, `MQTT_PORT`, `DEVICE`, `PEDESTRIAN_CONF_THRESHOLD`, `INFERENCE_HISTORY`, `MQTT_USER`,
 `MQTT_PASS`) are read from the environment or `.env` next to `compose.yaml`.
 
+### Save every image outside Docker (optional)
+
+To keep every image the master receives (stream frames and alert snapshots) for labeling,
+add the override file and point `DATASET_HOST_DIR` in `.env` at a folder on this computer:
+
+```sh
+docker compose -f compose.yaml -f compose.dataset.yaml up -d
+```
+
+Files land in `<DATASET_HOST_DIR>/<device-id>/<unix-ms>.jpg`, as the exact JPEG the device
+sent. A file is written as `.part` and renamed when complete, so a CVAT upload script
+should skip `*.part`. The master runs as uid 1000, so on Linux that folder must be
+writable by it (`chown 1000 <dir>`). The archive is never pruned, so watch the disk.
+Without the override file nothing is saved. Without Docker, set `DATASET_DIR` instead.
+
 ## Expose the broker with Cloudflare Tunnel
 
 Devices on LTE are behind carrier NAT, so they connect out to a public hostname.

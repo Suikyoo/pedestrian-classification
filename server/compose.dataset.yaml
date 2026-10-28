@@ -1,0 +1,15 @@
+# Optional: also save every image the master receives to a folder on the host, outside
+# Docker, so a script on this computer can pick the files up and push them to CVAT.
+#
+#   docker compose -f compose.yaml -f compose.dataset.yaml up -d
+#
+# DATASET_HOST_DIR (in .env or the environment) is the host folder, e.g. D:/dataset or
+# /srv/dataset. Layout: <DATASET_HOST_DIR>/<device-id>/<unix-ms>.jpg. Files are written
+# as .part and renamed when complete, so ignore *.part.
+
+services:
+  master:
+    environment:
+      DATASET_DIR: /data/dataset
+    volumes:
+      - ${DATASET_HOST_DIR:?set DATASET_HOST_DIR in .env to a host folder}:/data/dataset

@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     pedestrian_verify_max_gap_s: float = 3.0
     pedestrian_verify_alert_cooldown_s: float = 5.0
     events_dir: Path = Path("./events")
+    # When set, every received frame and event snapshot is also saved here, unmodified.
+    dataset_dir: Path | None = None
     inference_history: int = 200
     web_host: str = "0.0.0.0"
     web_port: int = 8000

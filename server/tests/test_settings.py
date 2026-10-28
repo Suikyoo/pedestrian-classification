@@ -56,3 +56,10 @@ def test_verify_reads_env(monkeypatch):
     assert s.pedestrian_verify_dwell_s == 6.0
     assert s.pedestrian_verify_max_gap_s == 2.0
     assert s.pedestrian_verify_alert_cooldown_s == 7.0
+
+
+def test_dataset_dir_off_by_default_and_read_from_env(monkeypatch):
+    monkeypatch.delenv("DATASET_DIR", raising=False)
+    assert Settings(_env_file=None).dataset_dir is None
+    monkeypatch.setenv("DATASET_DIR", "/data/dataset")
+    assert str(Settings(_env_file=None).dataset_dir).replace("\\", "/") == "/data/dataset"

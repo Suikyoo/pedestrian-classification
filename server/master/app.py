@@ -77,7 +77,8 @@ class MasterApp:
     def __init__(self, detector, events, threshold: float, clock: Callable[[], float] = time.time,
                  verify_threshold: float = 0.8, verify_dwell_s: float = 5.0,
                  verify_max_gap_s: float = 3.0, verify_alert_cooldown_s: float = 5.0,
-                 publish: Callable[[str, bytes], None] | None = None):
+                 publish: Callable[[str, bytes], None] | None = None, dataset=None):
+        self.dataset = dataset  # optional DatasetSink: archives every received JPEG
         self.detector = detector
         self.events = events
         self.threshold = threshold  # YOLO cutoff for stream-mode frames
@@ -115,6 +116,14 @@ class MasterApp:
         elif kind == "online":
             self._on_online(mac, payload, retained)
 
+    def _archive(self, mac: str, ts: float, jpeg: bytes) -> None:
+        if self.dataset is None:
+            return
+        try:
+            self.dataset.save(mac, ts, jpeg)
+        except Exception:
+            log.exception("%s: failed to archive frame", mac)
+
     def _update_device(self, mac: str, **fields) -> None:
         try:
             self.events.update_device(mac, **fields)
@@ -130,6 +139,7 @@ class MasterApp:
         now = self.clock()
         synced = img.capture_ms != 0
         ts = img.capture_ms / 1000 if synced else now
+        self._archive(mac, ts, img.jpeg)
         self.slots.put(mac, Frame(ts, synced, img.score, img.dwell_s, img.jpeg))
         self._update_device(mac, online=True, seen_ts=now)
 
@@ -141,6 +151,7 @@ class MasterApp:
             return
         now = self.clock()
         self._update_device(mac, online=True, seen_ts=now)
+        self._archive(mac, ev.alert_ms / 1000 if ev.alert_ms else now, jpeg)
 
         legacy = ev.dwell_s > 0 or ev.first_seen_ms < ev.alert_ms
         if legacy:
@@ -265,13 +276,19 @@ def connect(app: MasterApp, host: str, port: int, user: str, password: str,
 
 
 def main() -> None:
+    from master.dataset import DatasetSink
     from master.detector import Detector
     from master.events import EventStore
     from master.settings import Settings
 
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     s = Settings()
+    dataset = None
+    if s.dataset_dir is not None:
+        dataset = DatasetSink(s.dataset_dir)
+        log.info("archiving every received image to %s", s.dataset_dir)
     app = MasterApp(
+        dataset=dataset,
         detector=Detector(s.model_path, s.device),
         events=EventStore(s.events_dir, history=s.inference_history),
         threshold=s.pedestrian_conf_threshold,
