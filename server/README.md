@@ -38,6 +38,12 @@ Each device decides warnings with its own settings, kept across reboots:
 
 `threshold` 0.05–0.99, `dwell_s` 0–600, `max_gap_s` 0.5–60, `cooldown_s` 0–3600.
 
+The device sends at most one alert candidate per `cooldown_s`, and the master scores each
+one with YOLO. The master only verifies an alert when candidates arrive within its
+`PEDESTRIAN_VERIFY_MAX_GAP_S` (3 s) of each other for `PEDESTRIAN_VERIFY_DWELL_S` (5 s), so
+keep the device `cooldown_s` below that gap, e.g. `cooldown_s=1`. The default of 30 means
+no alert is ever verified.
+
 ## Dashboard
 
 Shows every device (online state, its active threshold and dwell, last warning),

@@ -283,29 +283,18 @@ def test_verify_cooldown_gates_second_command():
     assert len(app.published) == 1
 
 
-def test_verify_immediate_bypass():
-    detector = FakeDetector(conf=0.85)
+def test_verify_high_device_score_still_scored_by_host():
+    detector = FakeDetector(conf=0.4)
     app = make_app(detector=detector)
     app.on_message(f"{MAC}/event", candidate_event(max_score=0.95))
-    assert detector.calls == 0 and app.published == []
-    [rec] = app.events.recorded
-    assert rec["alert"].max_conf == 0.95
+    assert detector.calls == 1 and app.published == [] and app.events.recorded == []
+    assert app.events.inferences[0]["conf"] == 0.4
 
 
 def test_verify_zero_dwell_confirms_on_first_event():
     app = make_app(detector=FakeDetector(conf=0.85), verify_dwell_s=0.0)
     app.on_message(f"{MAC}/event", candidate_event())
     assert app.published == [(f"{MAC}/alert", protocol.alert_payload(1))]
-
-
-def test_verify_immediate_bypass_records_once_per_cooldown():
-    detector = FakeDetector(conf=0.85)
-    app = make_app(detector=detector, clock=Clock(1000.0))
-    app.on_message(f"{MAC}/event", candidate_event(ms=0, max_score=0.95))
-    app.clock.now = 1001.0
-    app.on_message(f"{MAC}/event", candidate_event(ms=0, max_score=0.95))
-    assert detector.calls == 0 and app.published == []
-    assert len(app.events.recorded) == 1
 
 
 def test_verify_fresh_app_never_confirms_stale_window():

@@ -19,8 +19,6 @@ from master.events import Alert
 
 log = logging.getLogger("master")
 
-ALERT_THRESHOLD = 0.90  # device-side immediate-alert cutoff; same constant as firmware
-
 
 @dataclass(frozen=True)
 class Frame:
@@ -93,7 +91,6 @@ class MasterApp:
         self._verify_windows: dict[str, VerifyWindow] = {}
         self._verify_synced: dict[str, bool] = {}
         self._last_command: dict[str, float] = {}
-        self._last_bypass: dict[str, float] = {}
 
     # Called on the MQTT network thread. Must never raise: an exception here
     # stops paho's network loop and the server would stop receiving.
@@ -149,15 +146,6 @@ class MasterApp:
         if legacy:
             self._record_warning(mac, ev, jpeg, now)
             return
-        if ev.max_score > ALERT_THRESHOLD:
-            # Device already alerted. Record at most once per cooldown so a
-            # person staying close does not flood the warning list.
-            ts = ev.alert_ms / 1000 if ev.alert_ms else now
-            if self._last_bypass.get(mac, float("-inf")) + self.verify_alert_cooldown_s <= ts:
-                self._last_bypass[mac] = ts
-                self._record_warning(mac, ev, jpeg, now)
-            return
-
         try:
             conf = self.detector.person_confidence(jpeg)
         except Exception:
