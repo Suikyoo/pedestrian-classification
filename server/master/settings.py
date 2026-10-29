@@ -27,5 +27,8 @@ class Settings(BaseSettings):
     # When set, every received frame and event snapshot is also saved here, unmodified.
     dataset_dir: Path | None = None
     inference_history: int = 200
+    # Admin page (/admin) sends commands and config to devices. Off while the password is empty.
+    admin_user: str = "admin"
+    admin_password: str = ""
     web_host: str = "0.0.0.0"
     web_port: int = 8000

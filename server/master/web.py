@@ -1,4 +1,5 @@
-"""Read-only dashboard: devices, warnings, and stream-mode frames from the master's event store.
+"""Dashboard: devices, warnings, and stream-mode frames from the master's event store (read-only);
+plus the optional /admin page (master.admin) when ADMIN_PASSWORD is set.
 
     python -m master.web
 """
@@ -59,7 +60,7 @@ def _bool_or_none(v) -> bool | None:
     return None if v is None else bool(v)
 
 
-def create_app(settings: Settings) -> FastAPI:
+def create_app(settings: Settings, admin_link=None) -> FastAPI:
     root = Path(settings.events_dir).resolve()
     db_path = root / "events.db"
     app = FastAPI(title="Pedestrian inference dashboard")
@@ -159,6 +160,16 @@ def create_app(settings: Settings) -> FastAPI:
         if not target.is_relative_to(root) or target.suffix.lower() != ".jpg" or not target.is_file():
             raise HTTPException(status_code=404)
         return FileResponse(target)
+
+    if settings.admin_password:
+        from master import admin
+
+        link = admin_link if admin_link is not None else admin.AdminLink(
+            settings.mqtt_host, settings.mqtt_port, settings.mqtt_user, settings.mqtt_pass)
+        if admin_link is None:
+            app.router.on_startup.append(link.start)
+            app.router.on_shutdown.append(link.stop)
+        admin.install(app, settings, link)
 
     return app
 

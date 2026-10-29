@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Camera admin</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/admin.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar__brand">
+      <h1>Camera admin</h1>
+      <p class="topbar__summary">Send commands and settings to a camera</p>
+    </div>
+    <div class="topbar__right">
+      <a class="pill-button" href="/">Dashboard</a>
+    </div>
+  </header>
+
+  <main class="admin">
+    <section class="card admin__card" aria-labelledby="device-h">
+      <h2 id="device-h">Camera</h2>
+      <label class="field">
+        <span class="field__label">Device</span>
+        <select id="device"></select>
+      </label>
+      <p class="admin__state" id="device-state" role="status"></p>
+    </section>
+
+    <section class="card admin__card" aria-labelledby="cmd-h">
+      <h2 id="cmd-h">Commands</h2>
+      <div class="admin__buttons">
+        <button class="pill-button" type="button" data-action="start">Start streaming</button>
+        <button class="pill-button" type="button" data-action="stop">Stop streaming</button>
+        <button class="pill-button" type="button" data-action="status">Request status</button>
+        <button class="pill-button admin__danger" type="button" data-action="reboot">Reboot</button>
+      </div>
+      <div class="admin__alert">
+        <label class="field field--inline">
+          <span class="field__label">Repeats</span>
+          <input id="repeat" type="number" min="1" max="10" step="1" value="1" inputmode="numeric">
+        </label>
+        <button class="pill-button pill-button--quiet" type="button" id="play-alert">Play alert sound</button>
+      </div>
+    </section>
+
+    <section class="card admin__card" aria-labelledby="cfg-h">
+      <h2 id="cfg-h">Settings</h2>
+      <p class="admin__hint" id="cfg-hint"></p>
+      <form id="config-form" novalidate>
+        <div class="admin__grid" id="fields"></div>
+        <div class="admin__buttons">
+          <button class="pill-button pill-button--quiet" type="submit" id="save">Save changed settings</button>
+          <button class="pill-button" type="button" id="reset">Discard edits</button>
+        </div>
+      </form>
+    </section>
+
+    <p class="admin__toast" id="toast" role="status" aria-live="polite"></p>
+  </main>
+
+  <script src="/static/admin.js"></script>
+</body>
+</html>

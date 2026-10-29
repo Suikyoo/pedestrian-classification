@@ -59,10 +59,18 @@ services:
     environment:
       WEB_HOST: 0.0.0.0
       WEB_PORT: 8000
+      # Admin page (/admin): off while ADMIN_PASSWORD is empty. It publishes to the broker.
+      ADMIN_USER: ${ADMIN_USER:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USER: ${MQTT_USER:?set MQTT_USER in .env}
+      MQTT_PASS: ${MQTT_PASS:?set MQTT_PASS in .env}
       PEDESTRIAN_CONF_THRESHOLD: ${PEDESTRIAN_CONF_THRESHOLD:-0.6}
       INFERENCE_HISTORY: ${INFERENCE_HISTORY:-200}
     depends_on: [master]
     networks:
+      internal:
       cloudflared-net:
         aliases:
           - pedestrian-web

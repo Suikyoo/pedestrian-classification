@@ -62,6 +62,17 @@ There is no login: anyone on the LAN who can reach the port sees the camera
 thumbnails. Set `WEB_HOST=127.0.0.1` to allow only this PC. Windows Firewall may
 ask to allow Python on private networks the first time.
 
+## Admin page
+
+`/admin` on the dashboard sends the same commands and settings as `master.cli`, from a
+browser: start, stop, status, reboot, play the alert sound, and edit a camera's settings.
+It is off until you set `ADMIN_PASSWORD` in `.env` (user `ADMIN_USER`, default `admin`);
+the browser asks for them. The dashboard process then connects to the broker with the
+`MQTT_*` server account, so under Docker Compose `web` is on the `internal` network too.
+Settings are merged into the camera's retained config and only the fields you edit are
+sent. Use a long password: through the tunnel the page is public, and Basic auth over plain
+HTTP (e.g. `http://<lan-ip>:8000`) sends it unencrypted.
+
 ## Commands
 
 ```powershell

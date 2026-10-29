@@ -1,0 +1,37 @@
+/* Admin page. Reuses the tokens and cards from style.css. */
+.admin { display: grid; gap: var(--s4); max-width: 760px; margin: 0 auto; padding: 0 var(--s4) var(--s7); }
+.admin__card { padding: var(--s5); display: grid; gap: var(--s4); }
+.admin__card h2 { font-size: 1.125rem; font-weight: 650; letter-spacing: -0.015em; }
+.admin__buttons { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.admin__alert { display: flex; flex-wrap: wrap; align-items: end; gap: var(--s3); }
+.admin__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--s4); margin-bottom: var(--s4); }
+.admin__hint, .admin__state { color: var(--text-2); font-size: 0.875rem; min-height: 1.25em; }
+.admin__state[data-tone="bad"] { color: var(--red-text); }
+.admin__danger { color: var(--red-text); }
+
+.field { display: grid; gap: var(--s1); }
+.field--inline { grid-template-columns: auto; }
+.field__label { font-size: 0.8125rem; font-weight: 600; color: var(--text-2); }
+.field__range { font-size: 0.75rem; color: var(--text-3); }
+.field input, .field select {
+  font: inherit; color: var(--text); background: var(--card-2);
+  border: 1px solid var(--line-strong); border-radius: 10px; padding: 10px 12px; min-height: 44px; width: 100%;
+}
+.field--inline input { width: 6rem; }
+.field input:focus-visible, .field select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field[data-dirty="true"] input, .field[data-dirty="true"] select { border-color: var(--accent); background: var(--accent-soft); }
+.field[data-invalid="true"] input { border-color: var(--red); }
+
+.admin a.pill-button { text-decoration: none; display: inline-flex; align-items: center; }
+.admin__toast {
+  position: sticky; bottom: var(--s4); justify-self: center; min-height: 1.25em;
+  padding: var(--s2) var(--s4); border-radius: var(--r-pill); background: var(--card); box-shadow: var(--shadow-lift);
+  font-size: 0.875rem;
+}
+.admin__toast:empty { display: none; }
+.admin__toast[data-tone="bad"] { color: var(--red-text); }
+.admin__toast[data-tone="good"] { color: var(--green-text); }
+
+@media (max-width: 480px) {
+  .admin__buttons .pill-button { flex: 1 1 100%; justify-content: center; }
+}
