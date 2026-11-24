@@ -9,99 +9,121 @@
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="band">
-    <div class="band__id">
-      <svg class="clock" id="station-clock" viewBox="0 0 100 100" aria-hidden="true">
-        <circle class="clock__face" cx="50" cy="50" r="47"></circle>
-        <g class="clock__ticks" id="station-ticks"></g>
-        <line class="clock__hour" id="hand-hour" x1="50" y1="58" x2="50" y2="27"></line>
-        <line class="clock__minute" id="hand-minute" x1="50" y1="60" x2="50" y2="12"></line>
-        <g class="clock__second" id="hand-second">
-          <line x1="50" y1="66" x2="50" y2="24"></line>
-          <circle cx="50" cy="24" r="6.5"></circle>
-        </g>
-      </svg>
-      <p class="band__time"><time id="now">--:--:--</time></p>
-      <h1>Pedestrian warnings</h1>
-    </div>
-    <dl class="settings" id="settings" aria-label="Server settings">
-      <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
-      <div><dt>History</dt><dd id="set-history">–</dd></div>
-    </dl>
-    <div class="band__controls">
-      <p class="link-state" id="link-state" role="status">Connecting</p>
-      <button class="button" id="pause" type="button" aria-pressed="false">Pause</button>
+  <a class="skip-link" href="#devices-h">Skip to device status</a>
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a class="identity" href="#overview" aria-label="Safety console overview">
+        <svg viewBox="0 0 32 32" aria-hidden="true" class="identity__mark">
+          <path d="M8 4h19l-3 5H5zm-3 9h19l-3 5H2zm4 9h15l-3 5H6z" fill="currentColor"/>
+        </svg>
+        Safety console
+      </a>
+      <nav class="sections" aria-label="Console sections">
+        <a href="#devices-h">Devices</a><a href="#frames-h">Frames</a><a href="#warnings-h">Warnings</a>
+      </nav>
+      <div class="controls">
+        <p class="link-state" id="link-state" role="status">Connecting</p>
+        <button class="button pause" id="pause" type="button" aria-pressed="false">Pause</button>
+      </div>
     </div>
   </header>
 
   <div class="banner" id="banner" role="alert" hidden>
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"></path><path d="M12 10v5M12 18v.01"></path></svg>
-    <span>Server unreachable. Retrying every 2 seconds; the clock stops until data returns.</span>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5m0 3v.01"/></svg>
+    <span>Server unreachable. Updates will resume when the connection returns.</span>
   </div>
 
-  <main class="layout">
-    <div class="status-column">
-    <section class="pane pane--devices" aria-labelledby="devices-h">
-      <div class="pane__head">
-        <h2 id="devices-h">Devices</h2>
-        <p class="pane__meta" id="devices-meta"></p>
+  <main id="overview" class="workspace">
+    <header class="masthead">
+      <div class="masthead__body">
+        <h1>Pedestrian<br>warnings</h1>
+        <dl class="settings" id="settings" aria-label="Console readings">
+          <div>
+            <dt>Local time</dt>
+            <dd class="local-time">
+              <svg class="clock" id="station-clock" viewBox="0 0 100 100" aria-hidden="true">
+                <circle class="clock__face" cx="50" cy="50" r="47"/>
+                <g class="clock__ticks" id="station-ticks"></g>
+                <line class="clock__hour" id="hand-hour" x1="50" y1="58" x2="50" y2="27"/>
+                <line class="clock__minute" id="hand-minute" x1="50" y1="59" x2="50" y2="12"/>
+                <g class="clock__second" id="hand-second"><line x1="50" y1="57" x2="50" y2="13"/></g>
+              </svg>
+              <time id="now">--:--:--</time>
+            </dd>
+          </div>
+          <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
+          <div><dt>Frame history</dt><dd id="set-history">–</dd></div>
+        </dl>
       </div>
-      <table class="timetable timetable--devices">
-        <thead>
-          <tr>
+    </header>
+
+    <section class="panel devices-panel" aria-labelledby="devices-h">
+      <div class="panel__head">
+        <h2 id="devices-h">Device status</h2>
+        <p class="panel__meta" id="devices-meta"></p>
+      </div>
+      <div class="table-scroll" role="region" aria-labelledby="devices-h" tabindex="0">
+        <table class="timetable timetable--devices">
+          <thead><tr>
             <th scope="col" class="col-dial"><span class="visually-hidden">Dwell dial</span></th>
-            <th scope="col">Device</th>
+            <th scope="col">Device ID</th>
             <th scope="col">Status</th>
             <th scope="col" class="num">Score</th>
-            <th scope="col" class="num hide-sm">Last seen</th>
-            <th scope="col" class="num hide-sm">Last warning</th>
-          </tr>
-        </thead>
-        <tbody id="devices"></tbody>
-      </table>
-      <p class="empty" id="devices-empty">No devices yet. A device appears here within 2 seconds of its first status message reaching master.app.</p>
+            <th scope="col" class="num">Last seen</th>
+            <th scope="col" class="num">Last warning</th>
+          </tr></thead>
+          <tbody id="devices"></tbody>
+        </table>
+      </div>
+      <div class="empty empty--devices" id="devices-empty" hidden>
+        <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><rect x="5.5" y="6.5" width="21" height="15" rx="2"/><path d="M11 26h10m-5-4v4m-6-12h3l2-4 3 8 2-4h3"/></svg>
+        <div><h3>Waiting for devices</h3><p>Devices appear here when the server receives their first status message.</p></div>
+      </div>
     </section>
 
-    <section class="pane pane--warnings" aria-labelledby="warnings-h">
-      <div class="pane__head">
-        <h2 id="warnings-h">Warnings</h2>
-      </div>
-      <table class="timetable timetable--warnings">
-        <thead>
-          <tr>
-            <th scope="col">Time</th>
-            <th scope="col">Device</th>
-            <th scope="col" class="num">Dwell</th>
-            <th scope="col" class="num hide-sm">Max score</th>
-            <th scope="col"><span class="visually-hidden">Snapshot</span></th>
-          </tr>
-        </thead>
-        <tbody id="warnings"></tbody>
-      </table>
-      <p class="empty" id="warnings-empty">No warnings yet. A warning fires when a pedestrian stays in view for the dwell time.</p>
-    </section>
+    <div class="evidence">
+      <section class="panel frames-panel" aria-labelledby="frames-h">
+        <div class="panel__head">
+          <h2 id="frames-h">Capture frames</h2>
+          <p class="panel__meta" id="frames-scope">All devices</p>
+          <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
+        </div>
+        <div class="strips" id="strips"></div>
+        <div class="empty empty--frames" id="frames-empty" hidden>
+          <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><path d="M11 5H6v5m15-5h5v5M6 22v5h5m15-5v5h-5"/><rect x="10" y="12" width="9" height="9" rx="1"/><path d="m19 15 4-2v7l-4-2"/></svg>
+          <div><h3>Waiting for frames</h3><p>Start streaming from a device to see its captures.</p><code>python -m master.cli start &lt;id&gt;</code></div>
+        </div>
+      </section>
+
+      <section class="panel warnings-panel" aria-labelledby="warnings-h">
+        <div class="panel__head"><h2 id="warnings-h">Warning history</h2></div>
+        <div class="table-scroll" role="region" aria-labelledby="warnings-h" tabindex="0">
+          <table class="timetable timetable--warnings">
+            <thead><tr>
+              <th scope="col">Time</th>
+              <th scope="col">Device ID</th>
+              <th scope="col" class="num">Dwell</th>
+              <th scope="col" class="num">Max score</th>
+              <th scope="col"><span class="visually-hidden">Snapshot</span></th>
+            </tr></thead>
+            <tbody id="warnings"></tbody>
+          </table>
+        </div>
+        <div class="empty empty--warnings" id="warnings-empty" hidden>
+          <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><path d="M6 10V5m0 5h5M6.5 10a11 11 0 1 1-1 10"/><path d="M16 9v7l4 3"/></svg>
+          <div><h3>No warnings recorded</h3><p>A warning fires when a pedestrian stays in view for the configured dwell time.</p></div>
+        </div>
+      </section>
     </div>
-
-    <section class="pane pane--frames" aria-labelledby="frames-h">
-      <div class="pane__head">
-        <h2 id="frames-h">Frames</h2>
-        <p class="pane__meta" id="frames-scope">All devices</p>
-        <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
-      </div>
-      <div class="strips" id="strips"></div>
-      <p class="empty" id="frames-empty" hidden>No frames. Frames appear only for devices in stream mode: python -m master.cli start &lt;id&gt;.</p>
-    </section>
-
   </main>
 
-  <dialog class="viewer" id="viewer">
+  <dialog class="viewer" id="viewer" aria-labelledby="viewer-caption">
     <div class="viewer__media" id="viewer-media"></div>
     <div class="viewer__bar">
       <p id="viewer-caption"></p>
       <form method="dialog"><button class="button" type="submit">Close</button></form>
     </div>
   </dialog>
-
   <script src="/static/app.js"></script>
 </body>
 </html>

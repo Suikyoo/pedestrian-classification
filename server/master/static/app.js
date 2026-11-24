@@ -15,7 +15,7 @@ const state = {
   selected: "",
   lastId: 0,
   paused: false,
-  online: true,
+  online: null,
   rows: new Map(), // mac -> device row parts
   strips: new Map(), // mac -> frame strip parts
 };
@@ -64,7 +64,10 @@ function setOnline(ok) {
 
 function renderLinkState() {
   const node = $("#link-state");
-  if (!state.online) {
+  if (state.online === null) {
+    node.textContent = state.paused ? "Paused" : "Connecting";
+    node.dataset.state = state.paused ? "paused" : "connecting";
+  } else if (!state.online) {
     node.textContent = "Reconnecting";
     node.dataset.state = "down";
   } else {
@@ -349,6 +352,7 @@ function renderStripVisibility() {
     strip.section.classList.toggle("strip--expanded", mac === state.selected);
     syncInert(strip);
   }
+  $("#frames-empty").hidden = state.selected ? state.strips.has(state.selected) : state.strips.size > 0;
 }
 
 async function renderStrips(decorated) {
@@ -378,7 +382,6 @@ async function renderStrips(decorated) {
   }
   renderStripVisibility();
   await Promise.all(backfills);
-  $("#frames-empty").hidden = state.strips.size > 0;
 }
 
 async function pollNewFrames() {
