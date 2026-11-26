@@ -11,7 +11,41 @@
         ],
         "createdAt": "2026-10-17T16:45:07.256Z",
         "reason": "user chose the canon (Apple Home / Stripe dashboard references) for an Operate surface; a workhorse UI sans is the brief, Inter self-hosted for offline LAN"
+      },
+      {
+        "rule": "overused-font",
+        "value": "inter",
+        "createdAt": "2026-10-29T14:00:28.959Z",
+        "reason": "inherited from the existing dashboard: style.css bundles Inter and admin.html reuses it for consistency; not user confirmed"
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "server/master/static/index.html"
+        ],
+        "createdAt": "2026-11-26T17:42:26.375Z",
+        "reason": "Static HTML analysis sees panel children flush to section borders, but the linked stylesheet gives section headings 17px/13px and the camera, chart, table, and empty-state contents dedicated insets; blanket panel padding would double these established gutters."
+      },
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "server/master/static/admin.html"
+        ],
+        "createdAt": "2026-11-26T17:42:26.481Z",
+        "reason": "Static HTML analysis does not resolve the linked admin stylesheet: every admin card has clamp(18px, 2vw, 32px) padding and controls have 8px vertical and 10px horizontal padding."
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "server/master/static/style.css"
+        ],
+        "createdAt": "2026-11-26T17:42:26.576Z",
+        "reason": "The report points to the paused-state 7px border-left that forms the play triangle icon; it is a control glyph, not a colored card or list accent."
       }
     ]
-  }
+  },
+  "buildPath": "comp"
 }

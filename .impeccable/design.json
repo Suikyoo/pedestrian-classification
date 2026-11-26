@@ -1,166 +1,102 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-24T10:06:16.052998+00:00",
-  "title": "Pedestrian safety console",
+  "generatedAt": "2026-11-26T17:44:52.000Z",
+  "title": "Crossing Study",
   "extensions": {
     "colorMeta": {
-      "ground": {
-        "role": "neutral",
-        "displayName": "Ground",
-        "canonical": "#101110"
-      },
-      "surface": {
-        "role": "neutral",
-        "displayName": "Surface",
-        "canonical": "#171816"
-      },
-      "surface-high": {
-        "role": "neutral",
-        "displayName": "Surface High",
-        "canonical": "#20211e"
-      },
-      "rule": {
-        "role": "neutral",
-        "displayName": "Rule",
-        "canonical": "#373834"
-      },
-      "soft-rule": {
-        "role": "neutral",
-        "displayName": "Soft Rule",
-        "canonical": "#292b27"
-      },
-      "ink": {
-        "role": "neutral",
-        "displayName": "Ink",
-        "canonical": "#e9e6dc"
-      },
-      "muted": {
-        "role": "neutral",
-        "displayName": "Muted",
-        "canonical": "#aaa9a1"
-      },
-      "subtle": {
-        "role": "neutral",
-        "displayName": "Subtle",
-        "canonical": "#94958c"
-      },
-      "accent": {
-        "role": "primary",
-        "displayName": "Accent",
-        "canonical": "#e78464"
-      },
-      "selected": {
-        "role": "primary",
-        "displayName": "Selected",
-        "canonical": "#312721"
-      },
-      "live": {
-        "role": "success",
-        "displayName": "Live",
-        "canonical": "#a8c29b"
-      },
-      "person": {
-        "role": "warning",
-        "displayName": "Person",
-        "canonical": "#ebc77e"
-      },
-      "alarm": {
-        "role": "danger",
-        "displayName": "Alarm",
-        "canonical": "#ff8b78"
-      },
-      "alarm-fill": {
-        "role": "danger",
-        "displayName": "Alarm Fill",
-        "canonical": "#852e23"
-      },
-      "alarm-dark": {
-        "role": "danger",
-        "displayName": "Alarm Dark",
-        "canonical": "#371f1b"
-      },
-      "focus": {
-        "role": "primary",
-        "displayName": "Focus",
-        "canonical": "#f0cc93"
-      }
+      "ground": { "role": "neutral", "displayName": "Warm Paper Ground", "canonical": "#f6f6f2" },
+      "surface": { "role": "neutral", "displayName": "White Surface", "canonical": "#ffffff" },
+      "ink": { "role": "neutral", "displayName": "Ink Navy", "canonical": "#182844" },
+      "muted": { "role": "neutral", "displayName": "Slate Text", "canonical": "#536078" },
+      "rule": { "role": "neutral", "displayName": "Cool Gray Rule", "canonical": "#cbd0db" },
+      "plate": { "role": "secondary", "displayName": "Deep Blue Plate", "canonical": "#1d304f" },
+      "silver": { "role": "secondary", "displayName": "Silver Lilac", "canonical": "#c9c9e4" },
+      "accent": { "role": "primary", "displayName": "Muted Violet", "canonical": "#615a91" },
+      "wash": { "role": "primary-container", "displayName": "Violet Wash", "canonical": "#f0f0f7" },
+      "alarm": { "role": "danger", "displayName": "Coral Alarm", "canonical": "#ab4438" },
+      "alarm-wash": { "role": "danger-container", "displayName": "Pale Coral Wash", "canonical": "#f9ebe7" },
+      "focus": { "role": "primary", "displayName": "Focus Violet", "canonical": "#5449b0" }
     },
     "typographyMeta": {
-      "display": {
-        "displayName": "Masthead",
-        "purpose": "Condensed title over the crosswalk print."
-      },
-      "section": {
-        "displayName": "Section heading",
-        "purpose": "Device status, capture frames and warning history."
-      },
-      "body": {
-        "displayName": "Body",
-        "purpose": "Status labels, controls and instructions."
-      },
-      "reading": {
-        "displayName": "Reading",
-        "purpose": "Device identifiers, timestamps and numeric measurements."
-      }
+      "display": { "displayName": "Condensed Display", "purpose": "Study title, section headings, and large readings." },
+      "body": { "displayName": "Inter", "purpose": "Navigation, labels, instructions, and interface text." },
+      "reading": { "displayName": "System Monospace", "purpose": "Timestamps, camera IDs, and measured values." }
     },
     "shadows": [],
-    "motion": [
-      {
-        "name": "dwell-hand",
-        "value": "transform 1.9s linear",
-        "purpose": "Approaching a device's dwell limit."
-      },
-      {
-        "name": "clock",
-        "value": "58.5s sweep, 1.5s rest",
-        "purpose": "The local clock steps once per second under reduced motion."
-      }
-    ],
+    "motion": [],
     "breakpoints": [
-      {
-        "name": "compact-evidence",
-        "value": "1100px"
-      },
-      {
-        "name": "stacked-evidence",
-        "value": "850px"
-      },
-      {
-        "name": "device-records",
-        "value": "600px"
-      }
+      { "name": "wide-layout", "value": "1000px" },
+      { "name": "stacked-layout", "value": "760px" },
+      { "name": "phone-navigation", "value": "540px" },
+      { "name": "admin-fields", "value": "480px" }
     ]
   },
   "components": [
     {
-      "name": "Console control",
-      "kind": "button",
-      "description": "Pause and resume polling.",
-      "html": "<button class=\"control\">Pause</button>",
-      "css": ".control { padding: 5px 13px; min-height: 34px; color: #e9e6dc; background: #20211e; border: 1px solid #51514a; border-radius: 4px; font: 700 13px Arimo, sans-serif; }"
+      "name": "Gait study plate",
+      "kind": "custom",
+      "description": "Static sequence of overlapping walking poses above crossing marks; introduces the study without implying a live measurement.",
+      "html": "<figure class=\"engraving\"><svg aria-hidden=\"true\" viewBox=\"0 0 480 180\"><g class=\"poses\"><path class=\"pose p1\" d=\"M90 40v55m0 0-18 50m18-50 20 45\"/><path class=\"pose p6 final\" d=\"M350 34v58m0 0-18 54m18-54 23 48\"/></g></svg><figcaption>Gait study illustration</figcaption></figure>",
+      "css": ".instrument { color: #faf9f5; background: #1d304f; border-radius: 6px; overflow: hidden; } .engraving { color: #c9c9e4; } .pose { fill: #1d304f; stroke: #c9c9e4; stroke-width: 1.15; } .final { fill: #cdd1e2; stroke: #17253e; }"
     },
     {
-      "name": "Warning status",
+      "name": "Confidence timeline",
       "kind": "custom",
-      "description": "Triangle and written warning on an oxide surface.",
-      "html": "<span class=\"warning\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M12 3 2 21h20L12 3Z M12 10v5m0 3v.01\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"/></svg>Warning</span>",
-      "css": ".warning { display: inline-flex; align-items: center; gap: 6px; padding: 6px 9px; color: #ff8b78; background: #371f1b; font: 700 14px Arimo, sans-serif; }"
+      "description": "Time-based comparison of device and YOLO confidence with a selected sample and timestamp-aligned warning markers.",
+      "html": "<svg id=\"chart\" role=\"img\" aria-label=\"Confidence by capture time\"><path class=\"series series-device\" d=\"M0 80 L100 45 L200 55\"/><path class=\"series series-yolo\" d=\"M0 90 L100 60 L200 65\"/><path class=\"event\" d=\"M200 12 208 20 200 28 192 20Z\"/></svg>",
+      "css": "#chart .series { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; } #chart .series-device { stroke: #182844; } #chart .series-yolo { stroke: #615a91; stroke-dasharray: 5 4; } #chart .point-device { fill: #182844; } #chart .point-yolo { fill: #fff; stroke: #615a91; stroke-width: 1.5; } #chart .event { fill: #f9ebe7; stroke: #ab4438; stroke-width: 1.7; }"
+    },
+    {
+      "name": "Camera selector row",
+      "kind": "custom",
+      "description": "Selected source is identified by a filled radio-like marker and a restrained violet-tinted row.",
+      "html": "<article class=\"camera is-selected\"><div class=\"camera-head\"><button aria-pressed=\"true\">camera-01</button></div></article>",
+      "css": ".camera { padding: 13px clamp(18px, 2vw, 32px); border-top: 1px solid #cbd0db; } .camera.is-selected { background: #f1f2f8; } .camera-head button[aria-pressed=true]::before { background: #615a91; box-shadow: inset 0 0 0 2px #fff; border-color: #615a91; }"
+    },
+    {
+      "name": "Action buttons",
+      "kind": "button",
+      "description": "Thin ruled dashboard controls and a deep blue save action; admin controls keep a 44px touch height.",
+      "html": "<button class=\"button\" type=\"button\">Pause</button><button class=\"button admin__primary\" type=\"submit\">Save changed settings</button>",
+      "css": ".button { min-height: 38px; padding: 8px 12px; border: 1px solid #cbd0db; border-radius: 4px; background: #fff; font-size: 12px; font-weight: 600; } .admin .button { min-height: 44px; padding: 8px 13px; font-size: 13px; } .admin__primary { background: #1d304f; color: #fff; border-color: #1d304f; }"
+    },
+    {
+      "name": "Settings field",
+      "kind": "input",
+      "description": "Persistent label, monospace value, and range hint; edited and invalid states remain distinct.",
+      "html": "<label class=\"field\"><span class=\"field__label\">Confidence threshold</span><input type=\"number\" aria-describedby=\"range-hint\"><span class=\"field__range\" id=\"range-hint\">0–1</span></label>",
+      "css": ".field input, .field select { min-height: 44px; padding: 8px 10px; border: 1px solid #536078; border-radius: 4px; color: #182844; background: #fff; font: 14px/1.45 ui-monospace, monospace; } .field[data-dirty=true] :is(input,select) { border-color: #615a91; background: #f0f0f7; } .field[data-invalid=true] :is(input,select) { border: 2px dashed #ab4438; background: #f9ebe7; }"
+    },
+    {
+      "name": "Admin feedback",
+      "kind": "custom",
+      "description": "Text-first live feedback with restrained violet or coral full-border states.",
+      "html": "<p class=\"admin__toast\" role=\"status\" aria-live=\"polite\">Settings saved.</p>",
+      "css": ".admin__toast:not(:empty) { padding: 10px 16px; border: 1px solid #cbd0db; border-radius: 4px; background: #fff; } .admin__toast[data-tone=good] { border-color: #615a91; } .admin__toast[data-tone=bad] { color: #ab4438; border: 1px solid #ab4438; background: #f9ebe7; }"
     }
   ],
   "narrative": {
-    "northStar": "A night crossing",
-    "overview": "A crosswalk print and condensed headings introduce a graphite console. Device status precedes capture frames and warning history.",
+    "northStar": "Crossing Study",
+    "overview": "An annotated field instrument for studying pedestrian camera captures. A quiet paper interface gives one custom gait engraving and an elapsed-time confidence plot the visual focus; warning events remain tied to their recorded time and image.",
     "keyCharacteristics": [
-      "Full-width device board",
-      "Offline display and body fonts",
-      "Text paired with warning shape and color"
+      "Static gait engraving on a deep blue plate, visually separate from live readings",
+      "Elapsed-time plot with distinct solid and dashed detector traces, labeled axes, and sample markers",
+      "Timestamp-aligned coral warning diamonds with written status and event-specific snapshots",
+      "Warm paper surfaces, fine rules, condensed headings, and monospace measurements"
     ],
-    "rules": [],
+    "rules": [
+      "The Trace Distinction Rule: device and YOLO confidence remain distinguishable by line style and point fill as well as color.",
+      "The Recorded Event Rule: warning markers and images use the warning record's own timestamp and snapshot."
+    ],
     "dos": [
-      "Keep the masthead artwork separate from live evidence."
+      "Keep the gait engraving static and separate from live evidence.",
+      "Keep graph time horizontal and confidence vertical from 0 to 1.",
+      "Pair warning color and shape with a written label."
     ],
     "donts": [
-      "Invent site names, footage or measurements."
+      "Do not invent camera names, footage, or measurements.",
+      "Do not use a single color as the only distinction between the two detector traces.",
+      "Do not imply that the decorative gait illustration is a current camera capture."
     ]
   }
 }

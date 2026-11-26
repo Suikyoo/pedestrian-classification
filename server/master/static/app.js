@@ -1,485 +1,558 @@
-// Inference dashboard. Polls the read-only API; device-provided text is set with textContent only.
 "use strict";
 
 const POLL_MS = 2000;
 const WARNINGS_MS = 5000;
-const STALE_S = 10;
-const STATUS_STALE_S = 150; // devices send status every 60 s
-const FRAMES_PER_DEVICE = 48; // the strip shows one row of these; the selected device shows all
-const SVG_NS = "http://www.w3.org/2000/svg";
-const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
+const STATUS_STALE_S = 150;
+const SAMPLE_STALE_S = 10;
+const GAP_S = 10;
+const SAMPLES_PER_CAMERA = 48;
+// JavaScript Date supports 100 million days on either side of the epoch.
+const MAX_DATE_SECONDS = 8_640_000_000_000;
 const state = {
-  cfg: { threshold: 0.6, history: 200 },
-  cfgLoaded: false,
-  selected: "",
-  lastId: 0,
-  paused: false,
-  online: null,
-  pollHealth: { status: null, warnings: null },
-  rows: new Map(), // mac -> device row parts
-  strips: new Map(), // mac -> frame strip parts
+  configured: false, paused: false, lastId: 0, camera: null, sampleId: null,
+  devices: [], devicePollAt: null, warnings: [], samples: new Map(), loaded: new Set(),
+  health: { status: null, warnings: null },
 };
+const deviceRows = new Map();
+const warningRows = new Map();
+const chartDataRows = new Map();
+let chartView = null;
+let thumbRecord = null;
+let pollGeneration = 0;
 
-const $ = (sel) => document.querySelector(sel);
+const $ = id => document.getElementById(id);
+const finite = Number.isFinite;
+const validTimestamp = ts => finite(ts) && Math.abs(ts) <= MAX_DATE_SECONDS;
+const timeFormat = new Intl.DateTimeFormat([], {hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23"});
+const dateFormat = new Intl.DateTimeFormat([], {year: "numeric", month: "short", day: "numeric"});
+const clock = ts => validTimestamp(ts) ? timeFormat.format(ts * 1000) : "—";
+const date = ts => validTimestamp(ts) ? dateFormat.format(ts * 1000) : "—";
+const stamp = ts => validTimestamp(ts) ? date(ts) + " · " + clock(ts) : "—";
+const score = n => finite(n) ? n.toFixed(2) : "—";
+const seconds = n => finite(n) ? n.toLocaleString(undefined, {maximumFractionDigits: 2}) + " s" : "—";
+const chronological = (a, b) => a.ts - b.ts || a.id - b.id;
+const classification = r => r.positive === true ? "Pedestrian" : r.positive === false ? "Clear" : "—";
 
-function el(tag, className, text) {
+function element(tag, className, label) {
   const node = document.createElement(tag);
   if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  if (label !== undefined) node.textContent = label;
   return node;
 }
 
-function svg(tag, attrs) {
-  const node = document.createElementNS(SVG_NS, tag);
-  for (const [k, v] of Object.entries(attrs || {})) node.setAttribute(k, String(v));
-  return node;
+function write(node, value) {
+  if (node.textContent !== value) node.textContent = value;
 }
 
-function warnIcon() {
-  const icon = svg("svg", { class: "icon", viewBox: "0 0 24 24", "aria-hidden": "true" });
-  icon.append(svg("path", { d: "M12 3 2 21h20L12 3Z" }), svg("path", { d: "M12 10v5M12 18v.01" }));
-  return icon;
+function svg(tag, attributes, label) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attributes)) node.setAttribute(key, String(value));
+  if (label !== undefined) node.textContent = label;
+  return node;
 }
 
 async function getJSON(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
-  return res.json();
+  const response = await fetch(url, {cache: "no-store"});
+  if (!response.ok) throw new Error(url + " returned " + response.status);
+  return response.json();
 }
 
-const timeFmt = new Intl.DateTimeFormat([], { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
-const clock = (ts) => timeFmt.format(new Date(ts * 1000));
-const secs = (s) => `${s.toFixed(1)} s`;
-const conf = (c) => c.toFixed(2);
-const score = (s) => (s == null ? "–" : s.toFixed(2));
-
-/* ---------- connection state ---------- */
-
-function setOnline(source, ok) {
-  state.pollHealth[source] = ok;
-  const checks = Object.values(state.pollHealth);
-  const next = checks.every((value) => value === true)
-    ? true
-    : checks.some((value) => value === false) ? false : null;
-  if (state.online === next) return;
-  state.online = next;
-  $("#banner").hidden = next === true;
-  renderLinkState();
-}
-
-function renderLinkState() {
-  const node = $("#link-state");
-  if (state.online === null) {
-    node.textContent = state.paused ? "Paused" : "Connecting";
-    node.dataset.state = state.paused ? "paused" : "connecting";
-  } else if (!state.online) {
-    node.textContent = "Reconnecting";
-    node.dataset.state = "down";
-  } else {
-    node.textContent = state.paused ? "Paused" : "Live";
-    node.dataset.state = state.paused ? "paused" : "live";
+function renderConnection() {
+  const values = Object.values(state.health);
+  const down = values.includes(false);
+  const live = values.every(v => v === true);
+  const label = state.paused ? "Paused" : down ? "Reconnecting" : live ? "Live" : "Connecting";
+  $("link-state").dataset.state = down && !state.paused ? "down" : label.toLowerCase();
+  write($("link-state"), label);
+  $("banner").hidden = !down || state.paused;
+  if (state.devicePollAt !== null) renderDevices();
+  else if (state.health.status === false) {
+    write($("fleet-title"), "Status unavailable");
+    write($("fleet-detail"), "Waiting for a device status update.");
   }
 }
 
-/* ---------- station clock (signature: stops at 12 while the server is unreachable) ---------- */
-
-function buildTicks(group, count, every, inner, outer, cls, firstCls) {
-  for (let i = 0; i < count; i++) {
-    const a = (i / count) * 2 * Math.PI;
-    const isMajor = every && i % every === 0;
-    const r1 = isMajor ? inner - 6 : inner;
-    let className = isMajor ? `${cls} major` : cls;
-    if (i === 0 && firstCls) className += ` ${firstCls}`;
-    group.append(svg("line", {
-      class: className,
-      x1: 50 + r1 * Math.sin(a), y1: 50 - r1 * Math.cos(a),
-      x2: 50 + outer * Math.sin(a), y2: 50 - outer * Math.cos(a),
-    }));
+function cameraStatus(d, now) {
+  if (!d.online) return ["offline", "Offline"];
+  if (!validTimestamp(d.last_seen_ts) || now - d.last_seen_ts > STATUS_STALE_S) return ["stale", "No signal"];
+  if (d.detect_ok === false) return ["fault", "Detector fault"];
+  if (validTimestamp(d.last_warning_ts) && now - d.last_warning_ts < Math.max(d.cooldown_s ?? 30, SAMPLE_STALE_S)) {
+    return ["warning", "◇ Recorded warning"];
   }
+  if (!validTimestamp(d.last_ts) || now - d.last_ts > SAMPLE_STALE_S) return ["idle", "No recent sample"];
+  if (d.last_positive == null) return ["idle", "No classification"];
+  return d.last_positive ? ["pedestrian", "Pedestrian"] : ["clear", "Clear"];
 }
 
-function tickStationClock() {
-  const now = new Date();
-  $("#now").textContent = timeFmt.format(now);
-  const s = now.getSeconds() + now.getMilliseconds() / 1000;
-  const m = now.getMinutes() + s / 60;
-  const h = (now.getHours() % 12) + m / 60;
-  // Swiss station clocks sweep the seconds hand in 58.5 s and rest at 12 for 1.5 s.
-  const secAngle = state.online ? Math.min(s / 58.5, 1) * 360 : 0;
-  $("#hand-second").style.transform = `rotate(${REDUCED_MOTION ? Math.floor(secAngle / 6) * 6 : secAngle}deg)`;
-  $("#hand-minute").style.transform = `rotate(${Math.floor(m) * 6}deg)`;
-  $("#hand-hour").style.transform = `rotate(${h * 30}deg)`;
-}
-
-function startStationClock() {
-  buildTicks($("#station-ticks"), 60, 5, 40, 45, "clock__tick");
-  const loop = () => { tickStationClock(); requestAnimationFrame(loop); };
-  if (REDUCED_MOTION) { tickStationClock(); setInterval(tickStationClock, 1000); } else loop();
-}
-
-/* ---------- settings ---------- */
-
-async function loadConfig() {
-  const cfg = await getJSON("/api/config");
-  state.cfg = cfg;
-  state.cfgLoaded = true;
-  $("#set-threshold").textContent = cfg.threshold.toFixed(2);
-  $("#set-history").textContent = String(cfg.history);
-}
-
-/* ---------- devices timetable ---------- */
-
-// Devices decide warnings themselves. Frames (and so "Pedestrian") exist only in stream mode.
-function deviceState(d, nowS) {
-  if (!d.online) return { kind: "nosignal", label: "Offline", detail: "", rank: 3 };
-  if (d.last_seen_ts == null || nowS - d.last_seen_ts > STATUS_STALE_S) {
-    return { kind: "nosignal", label: "No signal", detail: "", rank: 3 };
+function renderFleet(states) {
+  const total = states.length;
+  const counts = new Map();
+  for (const kind of states) counts.set(kind, (counts.get(kind) || 0) + 1);
+  const online = total - (counts.get("offline") || 0) - (counts.get("stale") || 0);
+  let label = "Awaiting cameras";
+  if (counts.has("warning")) label = "Recorded warning";
+  else if (counts.has("pedestrian")) label = "Pedestrian in view";
+  else if (counts.has("fault")) label = "Detector fault";
+  else if (counts.has("clear")) label = "Monitoring";
+  else if (online) label = "No recent sample";
+  else if (total) label = "No signal";
+  $("fleet-title").parentElement.classList.toggle("has-warning", counts.has("warning"));
+  write($("fleet-title"), label);
+  const active = counts.get("warning") || 0;
+  let detail = total ? online + " of " + total + (total === 1 ? " camera online" : " cameras online") : "No devices have reported.";
+  if (active) detail += " · " + active + " with a recent warning";
+  if ((state.paused || state.health.status === false) && state.devicePollAt !== null) {
+    detail += " · As of " + stamp(state.devicePollAt);
   }
-  if (d.detect_ok === false) return { kind: "nosignal", label: "Detector fault", detail: "", rank: 3 };
-  const cooldown = d.cooldown_s ?? 30;
-  if (d.last_warning_ts != null && nowS - d.last_warning_ts < Math.max(cooldown, STALE_S)) {
-    return { kind: "warning", label: "Warning", detail: clock(d.last_warning_ts), rank: 0 };
-  }
-  const fresh = d.last_ts != null && nowS - d.last_ts <= STALE_S;
-  if (fresh && d.last_device_score != null && d.threshold != null && d.last_device_score >= d.threshold) {
-    const limit = d.dwell_s == null ? "" : ` of ${d.dwell_s} s`;
-    return { kind: "pedestrian", label: "Pedestrian", detail: `${secs(d.last_dwell_s ?? 0)}${limit}`, rank: 1 };
-  }
-  return { kind: "clear", label: "Clear", detail: d.streaming ? "streaming" : "", rank: 2 };
+  write($("fleet-detail"), detail);
 }
 
-function buildDial() {
-  const dial = svg("svg", { class: "dial", viewBox: "0 0 100 100", "aria-hidden": "true" });
-  const ticks = svg("g");
-  dial.append(svg("circle", { class: "dial__face", cx: 50, cy: 50, r: 46 }), ticks);
-  const hand = svg("g", { class: "dial__hand" });
-  hand.append(svg("line", { x1: 50, y1: 58, x2: 50, y2: 18 }), svg("circle", { cx: 50, cy: 18, r: 8 }));
-  dial.append(hand);
-  return { dial, ticks, hand, tickCount: -1, fraction: 0 };
-}
-
-function updateDial(parts, kind, dwell, limit) {
-  const count = Math.max(1, Math.min(12, Math.round(limit || 1)));
-  if (parts.tickCount !== count) {
-    parts.ticks.replaceChildren();
-    // Tick 0 (at 12 o'clock) marks the dwell limit, where a warning fires.
-    buildTicks(parts.ticks, count, 0, 36, 44, "dial__tick", "limit");
-    parts.tickCount = count;
-  }
-  parts.dial.dataset.kind = kind;
-  const progress = limit > 0 ? Math.min(dwell / limit, 1) : 1;
-  const fraction = kind === "pedestrian" ? progress : kind === "warning" ? 1 : 0;
-  // A station hand never runs backwards: sweep forward, snap back to 12 on reset.
-  const snapping = fraction < parts.fraction;
-  parts.hand.classList.toggle("is-snapping", snapping);
-  parts.hand.style.transform = `rotate(${fraction * 360}deg)`;
-  if (snapping) {
-    parts.hand.getBoundingClientRect(); // commit the snapped position before restoring the transition
-    requestAnimationFrame(() => parts.hand.classList.remove("is-snapping"));
-  }
-  parts.fraction = fraction;
-}
-
-function selectDevice(mac) {
-  state.selected = state.selected === mac ? "" : mac;
-  for (const [m, parts] of state.rows) {
-    const on = m === state.selected;
-    parts.tr.classList.toggle("is-selected", on);
-    parts.button.setAttribute("aria-pressed", String(on));
-  }
-  $("#frames-scope").textContent = state.selected ? `Device ${state.selected}` : "All devices";
-  $("#show-all").hidden = !state.selected;
-  renderStripVisibility();
-}
-
-function buildRow(mac) {
-  const tr = el("tr");
-  const dialParts = buildDial();
-  const tdDial = el("td");
-  tdDial.append(dialParts.dial);
-  const tdDevice = el("td");
-  const button = el("button", "device-select", mac);
+function makeDeviceRow(mac) {
+  const row = element("div", "camera");
+  const head = element("div", "camera-head");
+  const button = element("button", "", mac);
   button.type = "button";
-  button.setAttribute("aria-pressed", "false");
-  button.setAttribute("aria-label", `Show only frames from device ${mac}`);
-  button.addEventListener("click", (e) => { e.stopPropagation(); selectDevice(mac); });
-  const settings = el("span", "status__detail", "settings unknown");
-  tdDevice.append(button, settings);
-  const tdStatus = el("td");
-  const tdConf = el("td", "num");
-  const tdLast = el("td", "num hide-sm");
-  const tdWarn = el("td", "num hide-sm");
-  tr.append(tdDial, tdDevice, tdStatus, tdConf, tdLast, tdWarn);
-  tr.addEventListener("click", () => selectDevice(mac));
-  return { tr, button, settings, ...dialParts, tdStatus, tdConf, tdLast, tdWarn };
-}
-
-function statusNode(st) {
-  const span = el("span", `status status--${st.kind}`);
-  const word = el("span", "status__word");
-  if (st.kind === "warning") word.append(warnIcon());
-  word.append(document.createTextNode(st.label));
-  span.append(word);
-  if (st.detail) span.append(el("span", "status__detail", st.detail));
-  return span;
-}
-
-function renderDevices(devices) {
-  const nowS = Date.now() / 1000;
-  const tbody = $("#devices");
-  const decorated = devices.map((d) => ({ d, st: deviceState(d, nowS) }));
-  decorated.sort((a, b) => a.st.rank - b.st.rank || (b.d.last_dwell_s ?? 0) - (a.d.last_dwell_s ?? 0) || a.d.mac.localeCompare(b.d.mac));
-
-  const present = new Set();
-  for (const { d, st } of decorated) {
-    present.add(d.mac);
-    let parts = state.rows.get(d.mac);
-    if (!parts) {
-      parts = buildRow(d.mac);
-      state.rows.set(d.mac, parts);
-      const on = d.mac === state.selected;
-      parts.tr.classList.toggle("is-selected", on);
-      parts.button.setAttribute("aria-pressed", String(on));
-    }
-    updateDial(parts, st.kind, d.last_dwell_s ?? 0, d.dwell_s ?? 0);
-    parts.tr.classList.toggle("is-warning", st.kind === "warning");
-    parts.settings.textContent = d.threshold == null && d.dwell_s == null
-      ? "settings unknown"
-      : `\u2265 ${d.threshold == null ? "\u2013" : d.threshold.toFixed(2)} \u00b7 ${d.dwell_s == null ? "\u2013" : d.dwell_s} s`;
-    parts.tdStatus.replaceChildren(statusNode(st));
-    parts.tdConf.textContent = score(d.last_device_score);
-    parts.tdLast.textContent = d.last_seen_ts == null ? "–" : clock(d.last_seen_ts);
-    parts.tdWarn.textContent = d.last_warning_ts ? clock(d.last_warning_ts) : "–";
-    tbody.append(parts.tr); // moves existing rows into sorted order
+  button.addEventListener("click", () => selectCamera(mac));
+  const status = element("span", "camera-status");
+  head.append(button, status);
+  const data = element("dl", "camera-data");
+  const parts = {};
+  for (const [key, label] of Object.entries({score: "Device score", capture: "Captured at", seen: "Last seen", warning: "Last warning", cutoff: "Device cutoff", limit: "Dwell limit", streaming: "Reported streaming"})) {
+    const group = element("div");
+    parts[key] = element("dd");
+    group.append(element("dt", "", label), parts[key]);
+    data.append(group);
   }
-  for (const [mac, parts] of state.rows) {
-    if (!present.has(mac)) { parts.tr.remove(); state.rows.delete(mac); }
-  }
-
-  $("#devices-empty").hidden = devices.length > 0;
-  const counts = { warning: 0, pedestrian: 0 };
-  for (const { st } of decorated) if (st.kind in counts) counts[st.kind] += 1;
-  const meta = [`${devices.length} ${devices.length === 1 ? "device" : "devices"}`];
-  if (counts.pedestrian) meta.push(`${counts.pedestrian} with pedestrian`);
-  if (counts.warning) meta.push(`${counts.warning} warning`);
-  $("#devices-meta").textContent = meta.join(" · ");
-  return decorated;
+  row.append(head, data);
+  return {row, button, status, ...parts};
 }
 
-/* ---------- frames: one strip per device, newest on the left ---------- */
-
-function frameItem(r, img) {
-  const li = el("li", "frame");
-  li.dataset.id = String(r.id);
-  if (r.alerted) li.classList.add("frame--warning");
-  if (r.positive) li.classList.add("frame--positive");
-
-  const button = el("button", "frame__image");
-  button.type = "button";
-  button.setAttribute("aria-label", `Enlarge frame from ${r.mac} at ${clock(r.ts)}`);
-  button.append(img);
-  if (r.alerted) {
-    const stamp = el("span", "frame__stamp");
-    stamp.append(warnIcon(), document.createTextNode("Warning"));
-    button.append(stamp);
-  }
-  const caption = `${r.mac} · ${clock(r.ts)} · YOLO ${conf(r.conf)} · device ${score(r.device_score)}`;
-  button.addEventListener("click", () => openViewer(r.thumb_url, caption));
-  li.append(button);
-
-  const meta = el("div", "frame__meta");
-  meta.append(el("span", "frame__time", clock(r.ts)), el("span", "frame__conf", conf(r.conf)));
-  const bar = el("span", "conf-bar");
-  const fill = el("span");
-  fill.style.width = `${Math.round(Math.min(1, Math.max(0, r.conf)) * 100)}%`;
-  bar.append(fill);
-  meta.append(bar);
-  const statusText = `${r.positive ? `Pedestrian · ${secs(r.dwell_s)}` : "Clear"} · device ${score(r.device_score)}`;
-  meta.append(el("span", `frame__status${r.positive ? " frame__status--pedestrian" : ""}`, statusText));
-  li.append(meta);
-  return li;
-}
-
-function buildStrip(mac) {
-  const section = el("section", "strip");
-  section.setAttribute("aria-label", `Frames from device ${mac}`);
-  const head = el("div", "strip__head");
-  const state_ = el("span", "strip__state");
-  head.append(el("span", "", mac), state_);
-  const list = el("ol", "strip__frames");
-  section.append(head, list);
-  return { section, head, stateEl: state_, list, ids: new Set(), loaded: false };
-}
-
-async function addFrames(strip, rows) {
-  // Decode every thumbnail before it enters the strip so no tile shows blank.
-  const fresh = rows.filter((r) => !strip.ids.has(r.id));
-  const ready = await Promise.all(fresh.map(async (r) => {
-    const img = el("img");
-    img.alt = "";
-    img.src = r.thumb_url;
-    try { await img.decode(); } catch { /* broken image: keep the empty tile */ }
-    return frameItem(r, img);
-  }));
-  for (const li of ready) {
-    const id = Number(li.dataset.id);
-    if (strip.ids.has(id)) continue;
-    strip.ids.add(id);
-    let before = null;
-    for (const child of strip.list.children) {
-      if (Number(child.dataset.id) < id) { before = child; break; }
-    }
-    strip.list.insertBefore(li, before);
-  }
-  while (strip.list.children.length > FRAMES_PER_DEVICE) {
-    const last = strip.list.lastElementChild;
-    strip.ids.delete(Number(last.dataset.id));
-    last.remove();
-  }
-  syncInert(strip);
-}
-
-function visibleSlots(strip) {
-  if (strip.section.classList.contains("strip--expanded")) return Infinity;
-  const cols = getComputedStyle(strip.list).gridTemplateColumns.split(" ").filter(Boolean).length;
-  return Math.max(1, cols);
-}
-
-// Tiles clipped out of a collapsed strip must not take focus or reach the accessibility tree.
-function syncInert(strip) {
-  const visible = visibleSlots(strip);
-  [...strip.list.children].forEach((li, i) => { li.inert = i >= visible; });
-}
-
-function renderStripVisibility() {
-  for (const [mac, strip] of state.strips) {
-    strip.section.hidden = Boolean(state.selected) && mac !== state.selected;
-    strip.section.classList.toggle("strip--expanded", mac === state.selected);
-    syncInert(strip);
-  }
-  $("#frames-empty").hidden = state.selected ? state.strips.has(state.selected) : state.strips.size > 0;
-}
-
-async function renderStrips(decorated) {
-  const container = $("#strips");
-  const present = new Set();
-  const backfills = [];
-  for (const { d, st } of decorated) {
-    if (!d.count) continue; // not streaming: no frames to show
-    present.add(d.mac);
-    let strip = state.strips.get(d.mac);
-    if (!strip) {
-      strip = buildStrip(d.mac);
-      state.strips.set(d.mac, strip);
-    }
-    strip.stateEl.textContent = st.detail ? `${st.label} · ${st.detail}` : st.label;
-    strip.head.classList.toggle("is-warning", st.kind === "warning");
-    // Strips keep the order devices first appeared in, so photos never jump when a status changes.
-    if (!strip.section.isConnected) container.append(strip.section);
-    if (!strip.loaded) {
-      const params = new URLSearchParams({ mac: d.mac, limit: String(FRAMES_PER_DEVICE) });
-      backfills.push(getJSON(`/api/inferences?${params}`).then(async (rows) => {
-        await addFrames(strip, rows);
-        strip.loaded = true;
-      }));
+function removeMissing(nodes, ids) {
+  for (const [id, parts] of nodes) {
+    if (!ids.has(id)) {
+      parts.row.remove();
+      nodes.delete(id);
     }
   }
-  for (const [mac, strip] of state.strips) {
-    if (!present.has(mac)) { strip.section.remove(); state.strips.delete(mac); }
-  }
-  renderStripVisibility();
-  await Promise.all(backfills);
 }
 
-async function pollNewFrames() {
-  const params = new URLSearchParams({ limit: "100", after_id: String(state.lastId) });
-  const rows = await getJSON(`/api/inferences?${params}`);
-  const byMac = new Map();
+function renderDevices() {
+  const now = Date.now() / 1000;
+  const states = [];
+  const ids = new Set();
+  for (const d of state.devices) {
+    ids.add(d.mac);
+    if (!deviceRows.has(d.mac)) {
+      const parts = makeDeviceRow(d.mac);
+      deviceRows.set(d.mac, parts);
+      $("devices").append(parts.row);
+    }
+    const parts = deviceRows.get(d.mac);
+    const [kind, label] = cameraStatus(d, now);
+    const selected = d.mac === state.camera;
+    states.push(kind);
+    parts.row.classList.toggle("is-selected", selected);
+    parts.button.setAttribute("aria-pressed", String(selected));
+    parts.status.dataset.kind = kind;
+    write(parts.status, label);
+    write(parts.score, score(d.last_device_score));
+    write(parts.capture, stamp(d.last_ts));
+    write(parts.seen, stamp(d.last_seen_ts));
+    write(parts.warning, stamp(d.last_warning_ts));
+    write(parts.cutoff, score(d.threshold));
+    write(parts.limit, seconds(d.dwell_s));
+    write(parts.streaming, d.streaming === true ? "On" : d.streaming === false ? "Off" : "—");
+  }
+  removeMissing(deviceRows, ids);
+  $("devices-empty").hidden = ids.size > 0;
+  write($("camera-count"), String(ids.size));
+  renderFleet(states);
+
+  const d = state.devices.find(device => device.mac === state.camera);
+  const dwell = d?.last_dwell_s;
+  const limit = d?.dwell_s;
+  write($("dwell-camera"), state.camera ?? "No focused camera");
+  write($("dwell-value"), seconds(dwell));
+  write($("dwell-limit"), "Limit " + seconds(limit));
+  const fraction = finite(dwell) && finite(limit) && limit > 0 ? Math.max(0, Math.min(1, dwell / limit)) : 0;
+  $("dwell-fill").style.width = fraction * 100 + "%";
+  let captureTime = d?.last_ts == null ? "No capture" : "Capture time unavailable";
+  if (validTimestamp(d?.last_ts)) {
+    captureTime = (now - d.last_ts > SAMPLE_STALE_S ? "Last capture " : "Captured ") + stamp(d.last_ts);
+  }
+  write($("dwell-time"), captureTime);
+}
+
+function selectCamera(mac) {
+  if (state.camera === mac) return;
+  const lastCamera = state.camera;
+  state.camera = mac;
+  state.sampleId = null;
+  trimPinnedSample(lastCamera);
+  renderDevices();
+  renderChart();
+}
+
+function retainSamples(mac, incoming) {
+  const previous = state.samples.get(mac) || [];
+  const byId = new Map(previous.map(r => [r.id, r]));
+  for (const r of incoming) if (finite(r.ts)) byId.set(r.id, r);
+  const sorted = [...byId.values()].sort(chronological);
+  const recent = sorted.slice(-SAMPLES_PER_CAMERA);
+  // Keep the inspected record even after it ages out of the normal window.
+  const pinned = mac === state.camera ? byId.get(state.sampleId) : null;
+  if (pinned && !recent.some(r => r.id === pinned.id)) recent.unshift(pinned);
+  state.samples.set(mac, recent);
+}
+
+function trimPinnedSample(mac) {
+  const rows = state.samples.get(mac);
+  if (rows?.length > SAMPLES_PER_CAMERA) retainSamples(mac, []);
+}
+
+function currentSample() {
+  const rows = state.samples.get(state.camera) || [];
+  if (state.sampleId === null) return rows.at(-1);
+  return rows.find(r => r.id === state.sampleId);
+}
+
+function inspect(id) {
+  if (id === state.sampleId) return;
+  state.sampleId = id;
+  trimPinnedSample(state.camera);
+  renderChart();
+  const r = currentSample();
+  if (r) write($("selection-announcement"), stamp(r.ts) + " · " + classification(r) + " · Device score " + score(r.device_score) + " · YOLO score " + score(r.conf));
+}
+
+function navigate(delta) {
+  const rows = state.samples.get(state.camera) || [];
+  const index = rows.indexOf(currentSample());
+  if (rows[index + delta]) inspect(rows[index + delta].id);
+}
+
+function evidence(r) {
+  write($("sample-time"), r ? stamp(r.ts) + (r.alerted ? " · ◇ Recorded warning" : "") : "No sample selected");
+  write($("sample-device"), score(r?.device_score));
+  write($("sample-yolo"), score(r?.conf));
+  write($("sample-dwell"), seconds(r?.dwell_s));
+  write($("sample-class"), r ? classification(r) : "—");
+  // Updating other cameras or receiving an identical poll must not reload the image.
+  const key = r?.thumb_url || null;
+  if (key === thumbRecord) return;
+  thumbRecord = key;
+  const button = $("thumb-open");
+  button.querySelector("img")?.remove();
+  button.hidden = !key;
+  $("thumb-missing").hidden = Boolean(key);
+  write($("thumb-missing"), "No capture");
+  if (key) {
+    const image = element("img");
+    image.alt = "Selected capture from " + r.mac;
+    image.addEventListener("error", () => {
+      if (image.parentElement !== button) return;
+      button.hidden = true;
+      $("thumb-missing").hidden = false;
+      write($("thumb-missing"), "Image unavailable");
+    });
+    image.src = key;
+    button.prepend(image);
+  }
+}
+
+function timeWindow(rows, warnings) {
+  const records = rows.length ? rows : warnings;
+  if (!records.length) return null;
+  let start = records[0].ts, end = records.at(-1).ts;
+  if (rows.length && warnings.length) {
+    // Warnings keep extending the timeline even after streaming stops.
+    end = Math.max(end, warnings.at(-1).ts);
+    const firstVisible = warnings.find(w => w.ts >= start - GAP_S);
+    if (firstVisible) start = Math.min(start, firstVisible.ts);
+  }
+  if (start === end) return [Math.max(-MAX_DATE_SECONDS, start - 1), Math.min(MAX_DATE_SECONDS, end + 1)];
+  return [start, end];
+}
+
+function plotSeries(layer, rows, field, name, x, y, selected, detached) {
+  let previous = null;
+  const path = [];
+  const points = [];
   for (const r of rows) {
-    state.lastId = Math.max(state.lastId, r.id);
-    const strip = state.strips.get(r.mac);
-    if (!strip) continue; // its backfill will load it
-    if (!byMac.has(r.mac)) byMac.set(r.mac, []);
-    byMac.get(r.mac).push(r);
-  }
-  await Promise.all([...byMac].map(([mac, list]) => addFrames(state.strips.get(mac), list)));
-}
-
-/* ---------- warnings ---------- */
-
-function renderWarnings(alerts) {
-  const tbody = $("#warnings");
-  tbody.replaceChildren();
-  for (const a of alerts) {
-    const tr = el("tr");
-    tr.append(el("td", "", clock(a.ts)), el("td", "device-id", a.mac), el("td", "num", secs(a.dwell_s)), el("td", "num hide-sm", conf(a.max_conf)));
-    const td = el("td", "num");
-    if (a.snapshot_url) {
-      const view = el("button", "button button--quiet", "View");
-      view.type = "button";
-      view.setAttribute("aria-label", `View snapshot of warning at ${clock(a.ts)} from ${a.mac}`);
-      view.addEventListener("click", () => openViewer(a.snapshot_url, `Warning · ${a.mac} · ${clock(a.ts)} · dwell ${secs(a.dwell_s)}`));
-      td.append(view);
-    } else {
-      td.append(el("span", "status__detail", "No image"));
+    if (!finite(r[field])) {
+      previous = null;
+      continue;
     }
-    tr.append(td);
-    tbody.append(tr);
+    const px = x(r.ts), py = y(r[field]);
+    const join = previous !== null && r.ts - previous.ts <= GAP_S;
+    path.push((join ? "L" : "M") + px + " " + py);
+    points.push(svg("circle", {cx: px, cy: py, r: r.id === selected?.id ? 3.6 : 2.2, class: "point-" + name}));
+    // The retained selection can be separated from the newest window by discarded records.
+    previous = r === detached ? null : r;
   }
-  $("#warnings-empty").hidden = alerts.length > 0;
+  if (path.length) layer.append(svg("path", {class: "series series-" + name, d: path.join(" ")}), ...points);
 }
 
-/* ---------- viewer ---------- */
+function makeChart(rows, alerts, selected) {
+  const chart = $("chart");
+  const width = Math.max(140, chart.clientWidth);
+  const height = 168, left = 38, right = width - 18, top = 23, bottom = height - 30;
+  const timedRows = rows.filter(r => validTimestamp(r.ts));
+  const detached = rows.length > SAMPLES_PER_CAMERA ? rows[0] : null;
+  const span = timeWindow(timedRows, alerts);
+  const events = span ? alerts.filter(a => a.ts >= span[0] && a.ts <= span[1]) : [];
+  const x = ts => left + (ts - span[0]) / (span[1] - span[0]) * (right - left);
+  const y = value => bottom - Math.min(1, Math.max(0, value)) * (bottom - top);
+  const layer = document.createDocumentFragment();
+  for (const value of [1, .5, 0]) {
+    layer.append(svg("line", {class: "grid", x1: left, x2: right, y1: y(value), y2: y(value)}));
+    layer.append(svg("text", {class: "axis", x: left - 7, y: y(value) + 4, "text-anchor": "end"}, value.toFixed(1)));
+  }
+  const ticks = width < 430 ? 2 : 4;
+  for (let i = 0; i <= ticks; i++) {
+    const px = left + i / ticks * (right - left);
+    layer.append(svg("line", {class: "grid minor", x1: px, x2: px, y1: top, y2: bottom}));
+    if (span) {
+      const ts = Math.min(span[1], span[0] + i / ticks * (span[1] - span[0]));
+      // The endpoints remain legible at phone widths. The data table gives full timestamps.
+      const label = span[1] - span[0] >= 86400 ? new Date(ts * 1000).toLocaleDateString(undefined, {month: "short", day: "numeric"}) : clock(ts);
+      const anchor = i === 0 ? "start" : i === ticks ? "end" : "middle";
+      layer.append(svg("text", {class: "axis", x: px, y: height - 9, "text-anchor": anchor}, label));
+    }
+  }
+  if (span) {
+    if (validTimestamp(selected?.ts)) layer.append(svg("line", {class: "selector", x1: x(selected.ts), x2: x(selected.ts), y1: top - 4, y2: bottom}));
+    plotSeries(layer, timedRows, "device_score", "device", x, y, selected, detached);
+    plotSeries(layer, timedRows, "conf", "yolo", x, y, selected, detached);
+    for (const a of events) {
+      const px = x(a.ts);
+      const marker = svg("g", {"data-warning": a.id});
+      marker.append(svg("title", {}, "Recorded warning · " + stamp(a.ts)));
+      marker.append(svg("rect", {x: px - 8, y: 1, width: 16, height: 20, fill: "transparent"}));
+      marker.append(svg("path", {class: "event", d: "M" + px + " 5l5 5-5 5-5-5z"}));
+      layer.append(marker);
+    }
+  }
+  chart.replaceChildren(layer);
+  chartView = {rows, timedRows, events, x};
+  $("plot-empty").hidden = timedRows.some(r => finite(r.conf) || finite(r.device_score));
+  const empty = timedRows.length ? "No scores reported" : rows.length ? "Capture time unavailable" : "Waiting for samples";
+  write($("plot-empty"), empty);
+}
+
+function renderChartData() {
+  if (!$("chart-details").open || !chartView) return;
+  const {rows, events} = chartView;
+  const records = [
+    ...rows.map(r => ({key: "sample-" + r.id, ts: r.ts, fields: [stamp(r.ts), score(r.device_score), score(r.conf), classification(r)]})),
+    ...events.map(a => ({key: "warning-" + a.id, ts: a.ts, fields: [stamp(a.ts), "—", "—", "◇ Recorded warning"]})),
+  ].sort((a, b) => a.ts - b.ts);
+  const body = $("chart-data");
+  removeMissing(chartDataRows, new Set(records.map(record => record.key)));
+  let next = body.firstElementChild;
+  for (const {key, fields} of records) {
+    if (!chartDataRows.has(key)) {
+      const row = element("tr");
+      const cells = fields.map(() => element("td"));
+      row.append(...cells);
+      chartDataRows.set(key, {row, cells});
+    }
+    const {row, cells} = chartDataRows.get(key);
+    fields.forEach((value, index) => write(cells[index], value));
+    if (row !== next) body.insertBefore(row, next);
+    next = row.nextElementSibling;
+  }
+}
+
+function renderChart() {
+  const rows = state.samples.get(state.camera) || [];
+  const selected = currentSample();
+  const index = rows.indexOf(selected);
+  const alerts = state.warnings.filter(a => a.mac === state.camera && validTimestamp(a.ts)).sort(chronological);
+  makeChart(rows, alerts, selected);
+  write($("chart-scope"), state.camera ?? "No focused camera");
+  write($("sample-position"), selected ? "Sample " + (index + 1) + " of " + rows.length : "No samples");
+  $("prev").setAttribute("aria-disabled", String(index <= 0));
+  $("next").setAttribute("aria-disabled", String(index < 0 || index >= rows.length - 1));
+  $("latest").setAttribute("aria-pressed", String(state.sampleId === null));
+  evidence(selected);
+  renderChartData();
+}
 
 function openViewer(url, caption) {
-  const img = el("img");
-  img.src = url;
-  img.alt = caption;
-  $("#viewer-media").replaceChildren(img);
-  $("#viewer-caption").textContent = caption;
-  $("#viewer").showModal();
+  if (!url) return;
+  const image = element("img");
+  image.alt = caption;
+  image.src = url;
+  $("viewer-media").replaceChildren(image);
+  write($("viewer-caption"), caption);
+  $("viewer").showModal();
 }
 
-/* ---------- loops ---------- */
+function openWarning(w) {
+  if (w) openViewer(w.snapshot_url, "Recorded warning · " + w.mac + " · " + stamp(w.ts) + " · Reported dwell " + seconds(w.dwell_s) + " · Max score " + score(w.max_conf));
+}
 
-function every(ms, source, fn) {
-  const run = async () => {
-    if (!state.paused) {
-      try {
-        await fn();
-        setOnline(source, true);
-      } catch (err) {
-        console.warn(err);
-        setOnline(source, false);
-      }
+function warningRow(a) {
+  const row = element("tr");
+  row.append(element("td", "record-mark", "◇ " + stamp(a.ts)), element("td", "", a.mac), element("td", "", seconds(a.dwell_s)), element("td", "", score(a.max_conf)));
+  const media = element("td");
+  if (a.snapshot_url) {
+    const button = element("button", "text-button", "View snapshot");
+    button.type = "button";
+    button.setAttribute("aria-label", "View recorded warning from " + a.mac + " at " + stamp(a.ts));
+    button.addEventListener("click", () => openWarning(a));
+    media.append(button);
+  } else media.textContent = "No image";
+  row.append(media);
+  return {row};
+}
+
+function renderWarnings(records) {
+  state.warnings = records.slice().sort((a, b) => chronological(b, a));
+  const newest = state.warnings[0];
+  $("recent").classList.toggle("has-warning", Boolean(newest));
+  write($("warning-time"), newest ? clock(newest.ts) : "None recorded");
+  write($("warning-device"), newest ? date(newest.ts) + " · " + newest.mac : "Across all cameras");
+  $("warning-open").hidden = !newest?.snapshot_url;
+  const body = $("warnings");
+  const ids = new Set(state.warnings.map(a => a.id));
+  removeMissing(warningRows, ids);
+  let next = body.firstElementChild;
+  for (const a of state.warnings) {
+    if (!warningRows.has(a.id)) warningRows.set(a.id, warningRow(a));
+    const {row} = warningRows.get(a.id);
+    // Insert new arrivals without detaching a focused snapshot button.
+    if (row !== next) body.insertBefore(row, next);
+    next = row.nextElementSibling;
+  }
+  $("warnings-empty").hidden = Boolean(newest);
+  write($("warnings-empty"), "No recorded warnings");
+  write($("warning-count"), records.length + (records.length === 1 ? " record" : " records") + " · All cameras");
+  renderChart();
+}
+
+async function pollStatus(generation) {
+  if (!state.configured) {
+    const cfg = await getJSON("/api/config");
+    if (generation !== pollGeneration) return;
+    write($("set-threshold"), score(cfg.threshold));
+    write($("set-history"), String(cfg.history ?? "—"));
+    state.configured = true;
+  }
+  const devices = await getJSON("/api/devices");
+  if (generation !== pollGeneration) return;
+  state.devices = devices;
+  state.devicePollAt = Date.now() / 1000;
+  const present = new Set(state.devices.map(d => d.mac));
+  const withSamples = new Set(state.devices.filter(d => d.count).map(d => d.mac));
+  if (!present.has(state.camera)) {
+    const fallback = state.devices.find(d => d.count) || state.devices[0];
+    state.camera = fallback?.mac ?? null;
+    state.sampleId = null;
+  }
+  for (const mac of state.loaded) {
+    if (!withSamples.has(mac)) {
+      state.loaded.delete(mac);
+      state.samples.delete(mac);
+      if (state.camera === mac) state.sampleId = null;
     }
-    setTimeout(run, ms);
-  };
-  run();
+  }
+  renderDevices();
+  renderChart();
+  const backfills = await Promise.allSettled([...withSamples].filter(mac => !state.loaded.has(mac)).map(async mac => {
+    const params = new URLSearchParams({mac, limit: String(SAMPLES_PER_CAMERA)});
+    const samples = await getJSON("/api/inferences?" + params);
+    if (generation !== pollGeneration) return;
+    retainSamples(mac, samples);
+    state.loaded.add(mac);
+    if (mac === state.camera) renderChart();
+  }));
+  if (generation !== pollGeneration) return;
+  const params = new URLSearchParams({limit: "100", after_id: String(state.lastId)});
+  const fresh = await getJSON("/api/inferences?" + params);
+  if (generation !== pollGeneration) return;
+  const batches = new Map();
+  for (const r of fresh) {
+    state.lastId = Math.max(state.lastId, r.id);
+    if (!present.has(r.mac)) continue;
+    if (!batches.has(r.mac)) batches.set(r.mac, []);
+    batches.get(r.mac).push(r);
+  }
+  for (const [mac, batch] of batches) retainSamples(mac, batch);
+  if (batches.has(state.camera)) renderChart();
+  const failed = backfills.find(result => result.status === "rejected");
+  if (failed) throw failed.reason;
 }
 
-async function pollStatus() {
-  if (!state.cfgLoaded) await loadConfig();
-  const decorated = renderDevices(await getJSON("/api/devices"));
-  await renderStrips(decorated);
-  await pollNewFrames();
+function every(ms, name, operation) {
+  async function poll() {
+    const generation = pollGeneration;
+    try {
+      if (state.paused) return;
+      try {
+        await operation(generation);
+        if (generation !== pollGeneration) return;
+        state.health[name] = true;
+      } catch (error) {
+        if (generation !== pollGeneration) return;
+        console.warn(error);
+        state.health[name] = false;
+      }
+      renderConnection();
+    } finally {
+      setTimeout(poll, ms);
+    }
+  }
+  poll();
 }
 
-function init() {
-  startStationClock();
-  renderLinkState();
-  $("#pause").addEventListener("click", (e) => {
-    state.paused = !state.paused;
-    e.currentTarget.setAttribute("aria-pressed", String(state.paused));
-    e.currentTarget.textContent = state.paused ? "Resume" : "Pause";
-    renderLinkState();
-  });
-  $("#show-all").addEventListener("click", () => selectDevice(state.selected));
-  $("#viewer").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
-  window.addEventListener("resize", () => { for (const strip of state.strips.values()) syncInert(strip); });
-  every(POLL_MS, "status", pollStatus);
-  every(WARNINGS_MS, "warnings", async () => renderWarnings(await getJSON("/api/alerts")));
-}
-
-init();
+$("pause").addEventListener("click", () => {
+  state.paused = !state.paused;
+  if (state.paused) pollGeneration++;
+  $("pause").setAttribute("aria-pressed", String(state.paused));
+  write($("pause"), state.paused ? "Resume" : "Pause");
+  renderConnection();
+});
+$("prev").addEventListener("click", () => navigate(-1));
+$("next").addEventListener("click", () => navigate(1));
+$("latest").addEventListener("click", () => inspect(null));
+$("plot").addEventListener("keydown", event => {
+  if (event.key === "ArrowLeft") navigate(-1);
+  else if (event.key === "ArrowRight") navigate(1);
+  else if (event.key === "Home" && chartView?.rows.length) inspect(chartView.rows[0].id);
+  else if (event.key === "End") inspect(null);
+  else return;
+  event.preventDefault();
+});
+$("chart").addEventListener("click", event => {
+  const marker = event.target.closest("[data-warning]");
+  if (marker) {
+    openWarning(chartView.events.find(a => String(a.id) === marker.dataset.warning));
+    return;
+  }
+  if (!chartView?.timedRows.length) return;
+  const {timedRows, x} = chartView;
+  const px = event.clientX - $("chart").getBoundingClientRect().left;
+  const nearest = timedRows.reduce((a, b) => Math.abs(x(b.ts) - px) < Math.abs(x(a.ts) - px) ? b : a);
+  inspect(nearest.id);
+});
+$("warning-open").addEventListener("click", () => openWarning(state.warnings[0]));
+$("thumb-open").addEventListener("click", () => {
+  const r = currentSample();
+  if (r) openViewer(r.thumb_url, "Selected sample · " + r.mac + " · " + stamp(r.ts));
+});
+$("viewer").addEventListener("click", event => {
+  if (event.target === $("viewer")) $("viewer").close();
+});
+$("chart-details").addEventListener("toggle", renderChartData);
+new ResizeObserver(renderChart).observe($("plot"));
+function tick() { write($("now"), timeFormat.format(new Date())); }
+tick();
+setInterval(tick, 1000);
+every(POLL_MS, "status", pollStatus);
+every(WARNINGS_MS, "warnings", async generation => {
+  const warnings = await getJSON("/api/alerts");
+  if (generation !== pollGeneration) return;
+  renderWarnings(warnings);
+});

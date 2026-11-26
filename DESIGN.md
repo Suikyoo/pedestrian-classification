@@ -1,92 +1,83 @@
 ---
-name: Pedestrian safety console
-description: A dark operations console with a crosswalk print, condensed display type, and a full-width live device board.
+name: Crossing Study
+description: A pedestrian monitor for comparing camera and YOLO confidence and inspecting recorded warnings.
 colors:
-  ground: "#101110"
-  surface: "#171816"
-  surface-high: "#20211e"
-  rule: "#373834"
-  soft-rule: "#292b27"
-  ink: "#e9e6dc"
-  muted: "#aaa9a1"
-  subtle: "#94958c"
-  accent: "#e78464"
-  selected: "#312721"
-  live: "#a8c29b"
-  person: "#ebc77e"
-  alarm: "#ff8b78"
-  alarm-fill: "#852e23"
-  alarm-dark: "#371f1b"
-  focus: "#f0cc93"
+  ground: "#f6f6f2"
+  surface: "#ffffff"
+  ink: "#182844"
+  muted: "#536078"
+  rule: "#cbd0db"
+  plate: "#1d304f"
+  silver: "#c9c9e4"
+  accent: "#615a91"
+  wash: "#f0f0f7"
+  alarm: "#ab4438"
+  alarm-wash: "#f9ebe7"
+  focus: "#5449b0"
 typography:
-  display:
-    fontFamily: "Barlow Condensed, Arimo, sans-serif"
-    fontWeight: 700
-    fontSize: "clamp(62px, 6.3vw, 96px)"
-    lineHeight: 0.83
-    letterSpacing: "-0.025em"
-  section:
-    fontFamily: "Barlow Condensed, Arimo, sans-serif"
-    fontWeight: 700
-    fontSize: "clamp(26px, 2.1vw, 36px)"
-    lineHeight: 1.15
-  body:
-    fontFamily: "Arimo, Arial, sans-serif"
-    fontSize: "14px"
-    lineHeight: 1.5
-  reading:
-    fontFamily: "ui-monospace, Cascadia Mono, Consolas, Liberation Mono, monospace"
-    fontSize: "13px"
+  display: "Barlow Condensed, Arial Narrow, sans-serif"
+  body: "Inter, Arial, sans-serif"
+  reading: "ui-monospace, Cascadia Mono, Consolas, monospace"
 rounded:
+  panel: "6px"
   control: "4px"
-  panel: "5px"
 spacing:
-  gutter: "clamp(16px, 3.5vw, 62px)"
-  panel-inset: "clamp(15px, 1.55vw, 26px)"
-  gap: "clamp(16px, 1.7vw, 28px)"
-components:
-  panel:
-    backgroundColor: "{colors.surface}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.panel}"
-  button:
-    backgroundColor: "{colors.surface-high}"
-    textColor: "{colors.ink}"
-    rounded: "{rounded.control}"
-    padding: "5px 13px"
-  warning-row:
-    backgroundColor: "{colors.alarm-dark}"
-    textColor: "{colors.alarm}"
+  gutter: "clamp(16px, 3.8vw, 64px)"
+  panel-inset: "clamp(18px, 2vw, 32px)"
+  gap: "clamp(14px, 1.4vw, 24px)"
 ---
 
-# Pedestrian safety console
+# Crossing Study
 
-## Overview
+## Gait illustration and reported dwell
 
-An original two-tone crosswalk print establishes the subject at the top of the console. Its broad diagonal stripes also inform the compact three-stripe console mark. The working area uses quiet graphite surfaces and warm off-white text for sustained night viewing.
+Seven overlapping walking poses share a ground line on an ink-blue plate. The early poses are fine silver-lilac outlines and the final figure has a pale fill. Diagonal crossing marks beneath the feet echo the three stripes in the navigation mark. The inline SVG stays still and carries the visible caption “Gait study illustration.”
 
-## Colors
+A separate ruler below the illustration compares the focused camera’s latest reported dwell with its configured limit. Both values are labeled in seconds. The capture timestamp accompanies the reading and identifies older observations. Zero appears as `0 s` and missing values appear as a dash.
 
-Copper identifies the console and the selected device. Sage accompanies the live connection label. A pedestrian approaching the dwell limit uses straw. A warning combines coral lettering, a triangle, a filled dwell dial and an oxide-tinted row. Reconnecting uses an explicit status and a full-width error message.
+## Confidence timeline
 
-## Typography
+The camera roster selects the source for the ruler and timeline. Horizontal distance on the plot represents elapsed capture time. The vertical axis spans confidence from 0 to 1.
 
-Self-hosted Barlow Condensed Bold sets the two-line masthead and section titles. Self-hosted Arimo carries operational text. Local monospace faces align device IDs, timestamps, scores and measurements.
+| Record | Encoding |
+| --- | --- |
+| Device confidence | Solid ink-blue line with filled dots |
+| YOLO confidence | Dashed violet line with hollow dots |
+| Selected sample | Vertical guide and larger sample dots |
+| Recorded warning | Coral outlined diamond above the score traces, aligned to the warning’s own timestamp |
 
-## Layout
+Each trace breaks at missing values and sampling gaps longer than ten seconds. Dots keep isolated readings visible. Selecting a sample reveals its capture time, thumbnail when available, both detector scores, reported dwell and recorded classification. Historical selection stays on the same sample as new records arrive. **Latest** resumes following captures.
 
-The top navigation gives access to devices, frames and warnings while the connection indicator and pause control stay together. The masthead groups local time with the server's read-only cutoff and frame history. Every device gets a row before the evidence area. Capture frames occupy the wider evidence column. The warning log sits alongside.
+## Fleet and warning records
 
-At 850px the evidence panels stack. At 600px each device row groups the dial, ID and state above labeled readings. Warning records group the timestamp and device above dwell, maximum score and snapshot access. All operational fields remain available on narrow screens.
+The fleet status summarizes device reports across cameras. The adjacent latest-warning panel shows the newest recorded event across the fleet, with its timestamp, camera ID and available snapshot. A recent warning pairs a diamond with a written label. Coral ink and a pale coral wash draw attention without flashing.
 
-## Elevation & Depth
+The archive lists warnings newest first, with recorded time, camera ID, reported dwell, max score and snapshot availability. Activating a chart diamond or a warning’s snapshot control opens that event’s own image when available. The selected sample thumbnail opens its capture separately.
 
-Hairline borders separate panels. Slightly lighter fills distinguish column headers and frame-strip headers. A darkened backdrop isolates the open snapshot viewer.
+## Surfaces, type and layout
+
+White panels sit on a warm paper ground with thin gray rules. Self-hosted Barlow Condensed Bold sets the study title, section headings and large status readings. Self-hosted Inter carries labels and instructions. A local monospace face distinguishes measurements, timestamps and identifiers. Violet identifies the selected camera and the YOLO trace. The legend also distinguishes both traces by line style.
+
+On wide screens the study and timeline share the wider left column, with the fleet summary and camera roster on the right. The warning archive spans both columns. At 760px and below, these sections stack, and the two fleet readings sit side by side. At phone widths the navigation wraps, sample readings form two columns and data tables scroll horizontally.
 
 ## Components
 
-- Device rows retain a dial for dwell progress, the written status, the score, and the last-seen and last-warning timestamps. Selecting a row filters its frames.
-- Frame strips put the latest capture first and open individual images in a native dialog. Alerted images carry an outlined frame, triangle and written warning.
-- Empty panels describe what will populate them. The stream command appears in the frame panel. Deployment imagery and device identifiers come from the API.
-- Reduced motion disables dial transitions and steps the small local clock once per second.
-- The masthead print is original AI-generated editorial artwork stored locally in `server/master/static/crossing.webp`. It is decorative and never used as a capture.
+Buttons use a four-pixel radius, a thin gray border and a minimum height of 38px on the dashboard; admin buttons use 44px. Both use 8px vertical padding. The save action uses the deep blue plate, while reboot uses a coral outline and a diamond. Disabled navigation controls retain their layout and use muted text.
+
+Panels have a six-pixel radius and a thin gray rule. Their children own the interior spacing: section headings use 17px top, 13px bottom and the shared 18–32px horizontal inset; sample details use 16px vertical padding; camera rows use 13px vertical padding. The selected camera combines a pale violet wash with a filled circular marker.
+
+The confidence plot sits in a lightly tinted, thinly ruled frame. Device readings use a solid ink line with filled points; YOLO readings use a dashed violet line with hollow points. Warning events use coral outlined diamonds at their recorded times. The sample detail pairs a 4:3 capture thumbnail with its timestamp and detector readings; the thumbnail control’s caption sits on a deep blue plate.
+
+Admin fields keep persistent labels above monospace controls. Inputs and selects use a 44px minimum height and 8px by 10px padding. Edited values gain a violet border and wash. Invalid numeric input uses a dashed coral border and pale coral background. Status and toast messages use text and thin, full-perimeter borders so state is not carried by a side stripe alone.
+
+## Camera administration
+
+The optional admin page shares the monitor’s navigation mark, fonts, borders, focus outline and panel spacing. The camera selector and command buttons occupy the left column, with settings on the right. On narrow screens camera selection, commands and settings follow in that order. Settings fields use one column at 480px and below.
+
+Native controls pair persistent labels with monospace values and range hints. Edited fields gain a violet edge and light wash. On save, a changed, nonempty numeric field gets a dashed coral border if the client cannot parse a finite number. For a parsed value outside the allowed range, the server returns a validation message and the field keeps its edited styling. The dark primary button saves changed settings. Reboot has a coral outline, a diamond and a confirmation prompt naming the selected camera. Device status and command feedback appear as text.
+
+## Keyboard and motion
+
+Both pages include a skip link and a visible, three-pixel focus outline. The focused plot supports Left and Right to step through samples, Home for the earliest sample and End to resume following. Previous and Next buttons step one sample at a time. The expandable chart data table gives timestamps, both confidence readings and record labels in text. Snapshot dialogs have a caption and support the Close button and Escape.
+
+Live regions announce connection status, keyboard or pointer sample selection, and admin feedback. Pausing polling allows a fixed view. The illustration stays static, and the shared reduced-motion rule disables animation, transitions and smooth scrolling.

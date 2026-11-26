@@ -3,127 +3,118 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">
-  <title>Pedestrian warnings</title>
+  <meta name="color-scheme" content="light">
+  <title>Crossing Study · Pedestrian monitor</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <a class="skip-link" href="#devices-h">Skip to device status</a>
-  <header class="topbar">
-    <div class="topbar__inner">
-      <a class="identity" href="#overview" aria-label="Safety console overview">
-        <svg viewBox="0 0 32 32" aria-hidden="true" class="identity__mark">
-          <path d="M8 4h19l-3 5H5zm-3 9h19l-3 5H2zm4 9h15l-3 5H6z" fill="currentColor"/>
-        </svg>
-        Safety console
+  <a class="skip-link" href="#timeline">Skip to confidence timeline</a>
+  <header class="navigation">
+    <div class="wrap navigation__inner">
+      <a class="brand" href="#overview">
+        <svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="5" fill="currentColor"/><path d="m5 23 8-14h3L8 23zm6 0 8-14h3l-8 14zm6 0 8-14h3l-8 14z" fill="#f6f6f2"/></svg>
+        Pedestrian monitor
       </a>
-      <nav class="sections" aria-label="Console sections">
-        <a href="#devices-h">Devices</a><a href="#frames-h">Frames</a><a href="#warnings-h">Warnings</a>
-      </nav>
-      <div class="controls">
-        <p class="link-state" id="link-state" role="status">Connecting</p>
-        <button class="button pause" id="pause" type="button" aria-pressed="false">Pause</button>
-      </div>
+      <nav aria-label="Dashboard sections"><a href="#timeline">Timeline</a><a href="#cameras">Cameras</a><a href="#archive">Warnings</a></nav>
+      <div class="connection"><span id="link-state" role="status">Connecting</span><button id="pause" class="button pause" type="button" aria-pressed="false">Pause</button></div>
     </div>
   </header>
+  <p class="banner" id="banner" role="alert" hidden>Server unreachable. Retrying the connection.</p>
 
-  <div class="banner" id="banner" role="alert" hidden>
-    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2 21h20L12 3Z"/><path d="M12 10v5m0 3v.01"/></svg>
-    <span>Server unreachable. Updates will resume when the connection returns.</span>
-  </div>
-
-  <main id="overview" class="workspace">
-    <header class="masthead">
-      <div class="masthead__body">
-        <h1>Pedestrian<br>warnings</h1>
-        <dl class="settings" id="settings" aria-label="Console readings">
-          <div>
-            <dt>Local time</dt>
-            <dd class="local-time">
-              <svg class="clock" id="station-clock" viewBox="0 0 100 100" aria-hidden="true">
-                <circle class="clock__face" cx="50" cy="50" r="47"/>
-                <g class="clock__ticks" id="station-ticks"></g>
-                <line class="clock__hour" id="hand-hour" x1="50" y1="58" x2="50" y2="27"/>
-                <line class="clock__minute" id="hand-minute" x1="50" y1="59" x2="50" y2="12"/>
-                <g class="clock__second" id="hand-second"><line x1="50" y1="57" x2="50" y2="13"/></g>
-              </svg>
-              <time id="now">--:--:--</time>
-            </dd>
+  <main class="wrap" id="overview">
+    <div class="overview">
+      <section class="instrument" aria-labelledby="title">
+        <div class="study">
+          <div class="study__title"><h1 id="title">Crossing<br>Study</h1></div>
+          <figure class="engraving">
+            <svg aria-hidden="true" viewBox="0 0 378 188" preserveAspectRatio="xMidYMid meet">
+              <defs>
+                <g id="body">
+                  <path d="m46 40 5-9-1-7q-5-4-4-12 1-9 10-11 11-2 15 6l1 8 4 6-4 2-1 6-5 2-4-1-1 8 4 8-4 18-6 15-1 10-23-4 3-13 3-19q1-8 9-12z"/>
+                  <path class="cut" d="m46 40 8 6 7-8m-21 32 5 7 11 2m-21 3 18 4m-4-70q6-7 15-5l6-1m-17 10q-2-6 1-6 3 0 3 4m6-4 4 1"/>
+                </g>
+                <g id="stride">
+                  <path d="m37 80 17 3-11 24-12 15-22 28-1 4-7-1 1-5 6-8 15-28z"/>
+                  <path d="m42 82 18 1 5 20 9 15 14 26 7 3 4 4-5 2-15-2-1-6-15-17-12-15-9-17z"/>
+                  <path class="cut" d="m15 134 7 4m54-1 6-3m-29-44 5 15 12 17m-32-26-11 22"/>
+                  <use href="#body"/><path d="m54 42q6-2 7 4l3 16 13 10 7 1 3 5-4 1-8-3-17-8-8-19q-1-4 4-7z"/>
+                  <path class="cut" d="m53 49 4 12m17 10-2 4"/>
+                </g>
+                <g id="passing">
+                  <path d="m43 81 15 2-5 26-8 14-1 24 3 3 7 1 2 3H36l-2-5 1-30z"/>
+                  <path d="m37 80 15 5 8 17 13 13-1 6-22 11-9 8-5-2 3-9 9-4 12-10-17-12-9-12z"/>
+                  <path class="cut" d="m36 143 8 1m9-20 3 6m-8-40 5 12 12 10"/>
+                  <use href="#body"/><path d="m49 43q4-5 9-1 3 2 1 7l-6 16 5 15 4 4-1 5-5-1-4-7-8-15z"/>
+                </g>
+                <g id="reach">
+                  <path d="m44 81 14 2 8 24-3 13-19 24-1 6-8 1-2-3 3-8 15-27-10-19z"/>
+                  <path d="m37 81 15 4-3 25-3 16 10 20 6 3 4 3-3 2-15-2-2-5-14-25 1-8z"/>
+                  <path class="cut" d="m43 138 8-2m-8-31-4 15 3 6"/>
+                  <use href="#body"/><path d="m50 43q4-5 8-2 4 4 0 9l-12 13-14 9-7 6-5-2 3-6 9-4 10-10z"/>
+                </g>
+              </defs>
+              <g class="ground-marks">
+                <path d="M11 153h358M11 158h351M35 178h302"/>
+                <path d="m28 158-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20z"/>
+              </g>
+              <g class="poses" transform="translate(4 0)">
+                <use class="pose p1" href="#stride" transform="translate(0 2) scale(.98)"/>
+                <use class="pose p2" href="#passing" transform="translate(41 -1)"/>
+                <use class="pose p3" href="#reach" transform="translate(79 0)"/>
+                <use class="pose p4" href="#stride" transform="translate(115 1) scale(.99)"/>
+                <use class="pose p5" href="#passing" transform="translate(157 -1)"/>
+                <use class="pose p6" href="#reach" transform="translate(193 0)"/>
+                <use class="pose final" href="#stride" transform="translate(239 -2) scale(1.01)"/>
+              </g>
+            </svg>
+            <figcaption><span></span>Gait study illustration</figcaption>
+          </figure>
+        </div>
+        <div class="dwell">
+          <div><h2>Reported dwell</h2><p id="dwell-camera">No focused camera</p></div>
+          <div class="dwell__scale">
+            <div class="dwell__readings"><strong id="dwell-value">—</strong><span id="dwell-limit">Limit —</span></div>
+            <div class="ruler" aria-hidden="true"><i id="dwell-fill"></i></div>
+            <p id="dwell-time">No capture</p>
           </div>
-          <div><dt>YOLO cutoff</dt><dd id="set-threshold">–</dd></div>
-          <div><dt>Frame history</dt><dd id="set-history">–</dd></div>
-        </dl>
-      </div>
-    </header>
+        </div>
+      </section>
+      <aside class="summary" aria-label="Fleet overview">
+        <section class="fleet"><div class="summary-heading"><svg aria-hidden="true" viewBox="0 0 20 20"><rect x="2" y="3" width="10" height="7" rx="1"/><path d="m12 5 5-2v7l-5-2M5 13v3h9"/></svg><span class="diamond" aria-hidden="true"></span><h2>Fleet status</h2></div><p class="readout" id="fleet-title">Connecting</p><p class="summary-detail" id="fleet-detail">Waiting for device status.</p></section>
+        <section class="recent" id="recent"><div class="summary-heading"><span class="diamond" aria-hidden="true"></span><h2>Latest recorded warning</h2></div><p class="warning-time" id="warning-time">Awaiting records</p><p class="summary-detail" id="warning-device"></p><button class="text-button" id="warning-open" type="button" hidden>View snapshot ↗</button></section>
+      </aside>
+    </div>
 
-    <section class="panel devices-panel" aria-labelledby="devices-h">
-      <div class="panel__head">
-        <h2 id="devices-h">Device status</h2>
-        <p class="panel__meta" id="devices-meta"></p>
-      </div>
-      <div class="table-scroll" role="region" aria-labelledby="devices-h" tabindex="0">
-        <table class="timetable timetable--devices">
-          <thead><tr>
-            <th scope="col" class="col-dial"><span class="visually-hidden">Dwell dial</span></th>
-            <th scope="col">Device ID</th>
-            <th scope="col">Status</th>
-            <th scope="col" class="num">Score</th>
-            <th scope="col" class="num">Last seen</th>
-            <th scope="col" class="num">Last warning</th>
-          </tr></thead>
-          <tbody id="devices"></tbody>
-        </table>
-      </div>
-      <div class="empty empty--devices" id="devices-empty" hidden>
-        <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><rect x="5.5" y="6.5" width="21" height="15" rx="2"/><path d="M11 26h10m-5-4v4m-6-12h3l2-4 3 8 2-4h3"/></svg>
-        <div><h3>Waiting for devices</h3><p>Devices appear here when the server receives their first status message.</p></div>
-      </div>
+    <div class="workspace">
+      <section class="timeline panel" id="timeline" tabindex="-1" aria-labelledby="timeline-h">
+        <header class="section-head"><div><h2 id="timeline-h">Confidence timeline</h2><p class="scope" id="chart-scope">No focused camera</p></div><div class="legend"><span><i></i>Device</span><span><i class="dashed"></i>YOLO</span><span><i class="diamond"></i>Recorded warning</span></div></header>
+        <div class="plot" id="plot" tabindex="0" role="group" aria-label="Confidence timeline for the focused camera" aria-describedby="chart-instructions">
+          <svg id="chart" width="100%" height="168" aria-hidden="true"></svg>
+          <p id="plot-empty">Waiting for samples</p>
+        </div>
+        <p class="visually-hidden" id="chart-instructions">Use the left and right arrow keys to select a sample. Press End to follow the latest sample. Chart readings are also available in the data table.</p>
+        <p class="visually-hidden" id="selection-announcement" role="status"></p>
+        <div class="chart-toolbar"><span class="scope" id="sample-position">No samples</span><div class="chart-buttons"><button id="prev" class="button step" aria-label="Previous sample" type="button" aria-disabled="true">←</button><button id="next" class="button step" aria-label="Next sample" type="button" aria-disabled="true">→</button><button id="latest" class="button latest" type="button" aria-pressed="true">Latest</button></div></div>
+        <section class="sample" aria-labelledby="sample-h">
+          <div class="sample-image"><button id="thumb-open" type="button" aria-label="Enlarge selected capture" hidden><span aria-hidden="true">↗</span></button><span id="thumb-missing">No capture</span></div>
+          <div class="sample__details"><h3 id="sample-h">Selected sample</h3><p id="sample-time">No sample selected</p><dl class="values"><div><dt>Device score</dt><dd id="sample-device">—</dd></div><div><dt>YOLO score</dt><dd id="sample-yolo">—</dd></div><div><dt>Reported dwell</dt><dd id="sample-dwell">—</dd></div><div><dt>Classification</dt><dd id="sample-class">—</dd></div></dl></div>
+        </section>
+        <details id="chart-details" class="chart-details"><summary>Chart data table</summary><div class="table-scroll" tabindex="0" role="region" aria-label="Chart data"><table><thead><tr><th>Capture / event time</th><th>Device confidence</th><th>YOLO confidence</th><th>Record</th></tr></thead><tbody id="chart-data"></tbody></table></div></details>
+      </section>
+      <section class="cameras panel" id="cameras" aria-labelledby="cameras-h">
+        <header class="section-head"><h2 id="cameras-h">Camera roster</h2><span class="count" id="camera-count">—</span></header>
+        <p class="roster-help">Select a camera to inspect its samples.</p><div id="devices"></div><p class="empty" id="devices-empty">Waiting for devices</p>
+      </section>
+    </div>
+    <section class="archive panel" id="archive" aria-labelledby="archive-h">
+      <header class="section-head"><h2 id="archive-h">Warning archive</h2><span class="scope" id="warning-count">All cameras</span></header>
+      <div class="table-scroll" tabindex="0" role="region" aria-label="Recorded warnings"><table><thead><tr><th>Recorded at</th><th>Camera ID</th><th>Reported dwell</th><th>Max score</th><th>Snapshot</th></tr></thead><tbody id="warnings"></tbody></table></div>
+      <p class="empty" id="warnings-empty">Awaiting warning records</p>
     </section>
-
-    <div class="evidence">
-      <section class="panel frames-panel" aria-labelledby="frames-h">
-        <div class="panel__head">
-          <h2 id="frames-h">Capture frames</h2>
-          <p class="panel__meta" id="frames-scope">All devices</p>
-          <button class="button button--quiet" id="show-all" type="button" hidden>Show all devices</button>
-        </div>
-        <div class="strips" id="strips"></div>
-        <div class="empty empty--frames" id="frames-empty" hidden>
-          <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><path d="M11 5H6v5m15-5h5v5M6 22v5h5m15-5v5h-5"/><rect x="10" y="12" width="9" height="9" rx="1"/><path d="m19 15 4-2v7l-4-2"/></svg>
-          <div><h3>Waiting for frames</h3><p>Start streaming from a device to see its captures.</p><code>python -m master.cli start &lt;id&gt;</code></div>
-        </div>
-      </section>
-
-      <section class="panel warnings-panel" aria-labelledby="warnings-h">
-        <div class="panel__head"><h2 id="warnings-h">Warning history</h2></div>
-        <div class="table-scroll" role="region" aria-labelledby="warnings-h" tabindex="0">
-          <table class="timetable timetable--warnings">
-            <thead><tr>
-              <th scope="col">Time</th>
-              <th scope="col">Device ID</th>
-              <th scope="col" class="num">Dwell</th>
-              <th scope="col" class="num">Max score</th>
-              <th scope="col"><span class="visually-hidden">Snapshot</span></th>
-            </tr></thead>
-            <tbody id="warnings"></tbody>
-          </table>
-        </div>
-        <div class="empty empty--warnings" id="warnings-empty" hidden>
-          <svg class="empty__symbol" aria-hidden="true" viewBox="0 0 32 32"><path d="M6 10V5m0 5h5M6.5 10a11 11 0 1 1-1 10"/><path d="M16 9v7l4 3"/></svg>
-          <div><h3>No warnings recorded</h3><p>A warning fires when a pedestrian stays in view for the configured dwell time.</p></div>
-        </div>
-      </section>
-    </div>
+    <footer><span>Local time <b id="now">—</b></span><span>YOLO cutoff <b id="set-threshold">—</b></span><span>Frame history <b id="set-history">—</b></span></footer>
   </main>
-
-  <dialog class="viewer" id="viewer" aria-labelledby="viewer-caption">
-    <div class="viewer__media" id="viewer-media"></div>
-    <div class="viewer__bar">
-      <p id="viewer-caption"></p>
-      <form method="dialog"><button class="button" type="submit">Close</button></form>
-    </div>
-  </dialog>
+  <dialog id="viewer" class="viewer" aria-labelledby="viewer-caption"><div id="viewer-media"></div><div class="viewer__bar"><p id="viewer-caption"></p><form method="dialog"><button class="button" type="submit">Close</button></form></div></dialog>
   <script src="/static/app.js"></script>
 </body>
 </html>
