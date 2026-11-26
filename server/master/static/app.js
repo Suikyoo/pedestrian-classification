@@ -18,6 +18,9 @@ const warningRows = new Map();
 const chartDataRows = new Map();
 let chartView = null;
 let thumbRecord = null;
+let sceneImageRecord = null;
+let replayTimer = null;
+let replayStoppedAtGap = false;
 let pollGeneration = 0;
 
 const $ = id => document.getElementById(id);
@@ -70,6 +73,13 @@ function renderConnection() {
     write($("fleet-title"), "Status unavailable");
     write($("fleet-detail"), "Waiting for a device status update.");
   }
+  syncLiveMarker();
+}
+
+function syncLiveMarker() {
+  const latest = (state.samples.get(state.camera) || []).at(-1);
+  const fresh = validTimestamp(latest?.ts) && Math.abs(Date.now() / 1000 - latest.ts) <= SAMPLE_STALE_S;
+  $("plot").classList.toggle("has-live-sample", state.sampleId === null && !state.paused && state.health.status === true && fresh);
 }
 
 function cameraStatus(d, now) {
@@ -169,22 +179,13 @@ function renderDevices() {
   renderFleet(states);
 
   const d = state.devices.find(device => device.mac === state.camera);
-  const dwell = d?.last_dwell_s;
-  const limit = d?.dwell_s;
-  write($("dwell-camera"), state.camera ?? "No focused camera");
-  write($("dwell-value"), seconds(dwell));
-  write($("dwell-limit"), "Limit " + seconds(limit));
-  const fraction = finite(dwell) && finite(limit) && limit > 0 ? Math.max(0, Math.min(1, dwell / limit)) : 0;
-  $("dwell-fill").style.width = fraction * 100 + "%";
-  let captureTime = d?.last_ts == null ? "No capture" : "Capture time unavailable";
-  if (validTimestamp(d?.last_ts)) {
-    captureTime = (now - d.last_ts > SAMPLE_STALE_S ? "Last capture " : "Captured ") + stamp(d.last_ts);
-  }
-  write($("dwell-time"), captureTime);
+  renderScene(currentSample());
 }
 
 function selectCamera(mac) {
   if (state.camera === mac) return;
+  stopReplay();
+  replayStoppedAtGap = false;
   const lastCamera = state.camera;
   state.camera = mac;
   state.sampleId = null;
@@ -217,7 +218,12 @@ function currentSample() {
 }
 
 function inspect(id) {
-  if (id === state.sampleId) return;
+  replayStoppedAtGap = false;
+  if (id === state.sampleId) {
+    renderScene(currentSample());
+    return;
+  }
+  stopReplay();
   state.sampleId = id;
   trimPinnedSample(state.camera);
   renderChart();
@@ -260,6 +266,111 @@ function evidence(r) {
   }
 }
 
+function setConfidence(name, value) {
+  const label = $("scene-" + name);
+  const fill = $("scene-" + name + "-fill");
+  const meter = fill.parentElement;
+  const percent = finite(value) ? Math.max(0, Math.min(100, value * 100)) : null;
+  write(label, percent === null ? "—" : percent.toFixed(1) + "%");
+  fill.style.width = (percent ?? 0) + "%";
+  meter.setAttribute("aria-valuenow", String(percent === null ? 0 : Math.round(percent)));
+  meter.setAttribute("aria-valuetext", percent === null ? "Unavailable" : percent.toFixed(1) + " percent");
+}
+
+function renderScene(r) {
+  const device = state.devices.find(item => item.mac === state.camera);
+  const kind = r?.positive === true ? "pedestrian" : r?.positive === false ? "clear" : "unknown";
+  const historical = state.sampleId !== null;
+  const stale = r && (!validTimestamp(r.ts) || Math.abs(Date.now() / 1000 - r.ts) > SAMPLE_STALE_S);
+  const classText = kind === "pedestrian" ? "Pedestrian detected" : kind === "clear" ? "No pedestrian detected" : "Awaiting capture";
+  const captureTime = r ? (replayStoppedAtGap ? "Replay stopped at gap · Last capture " : historical || stale ? "Last capture · " : "Captured · ") + stamp(r.ts) : "No sample selected";
+  const scene = $("crossing-scene");
+  scene.dataset.presence = kind;
+  $("scene-result").dataset.kind = kind;
+  $("scene-presence").dataset.kind = kind;
+  write($("scene-class"), classText);
+  write($("scene-presence"), kind === "pedestrian" ? "Pedestrian present" : kind === "clear" ? "Crossing clear" : "Awaiting capture");
+  write($("scene-time"), captureTime);
+  write($("scene-camera"), state.camera ? "Camera " + state.camera : "Select a camera to inspect its crossing");
+
+  setConfidence("device", r?.device_score);
+  setConfidence("yolo", r?.conf);
+
+  const dwell = r?.dwell_s;
+  const limit = device?.dwell_s;
+  write($("dwell-camera"), state.camera ?? "No focused camera");
+  write($("dwell-value"), seconds(dwell));
+  write($("dwell-limit"), "Limit " + seconds(limit));
+  const fraction = finite(dwell) && finite(limit) && limit > 0 ? Math.max(0, Math.min(1, dwell / limit)) : null;
+  $("dwell-fill").style.width = (fraction ?? 0) * 100 + "%";
+  const dwellTrack = $("dwell-fill").parentElement;
+  dwellTrack.setAttribute("aria-valuenow", String(fraction === null ? 0 : Math.round(fraction * 100)));
+  dwellTrack.setAttribute("aria-valuetext", fraction === null ? "Unavailable" : seconds(dwell) + " of " + seconds(limit));
+  $("dwell-limit-mark").hidden = !(finite(limit) && limit > 0);
+  write($("dwell-time"), r ? stamp(r.ts) : "No capture");
+
+  const imageKey = r?.thumb_url || null;
+  const preview = $("scene-preview");
+  const empty = $("scene-image-empty");
+  preview.disabled = !imageKey;
+  if (sceneImageRecord === imageKey) return;
+  sceneImageRecord = imageKey;
+  preview.querySelector("img")?.remove();
+  empty.hidden = false;
+  write(empty, imageKey ? "Loading camera image…" : "Camera image appears here with a capture");
+  if (imageKey) {
+    const image = element("img");
+    image.alt = "Camera capture from " + (r.mac || state.camera) + " · " + stamp(r.ts);
+    image.addEventListener("load", () => { if (image.parentElement === preview) empty.hidden = true; });
+    image.addEventListener("error", () => {
+      if (image.parentElement !== preview) return;
+      image.remove();
+      empty.hidden = false;
+      write(empty, "Camera image unavailable");
+    });
+    image.src = imageKey;
+    preview.insertBefore(image, empty);
+  }
+}
+
+function stopReplay() {
+  if (replayTimer !== null) clearInterval(replayTimer);
+  replayTimer = null;
+  if ($("replay")) {
+    $("replay").setAttribute("aria-pressed", "false");
+    write($("replay"), "Replay captures");
+  }
+}
+
+function replayCaptures() {
+  if (replayTimer !== null) { stopReplay(); return; }
+  const rows = state.samples.get(state.camera) || [];
+  if (rows.length < 2) return;
+  replayStoppedAtGap = false;
+  const selectedIndex = rows.indexOf(currentSample());
+  let index = selectedIndex >= 0 && selectedIndex < rows.length - 1 ? selectedIndex : -1;
+  $("replay").setAttribute("aria-pressed", "true");
+  write($("replay"), "Stop replay");
+  replayTimer = setInterval(() => {
+    const next = rows[index + 1];
+    const previous = rows[index];
+    if (!next) {
+      stopReplay();
+      inspect(null);
+      return;
+    }
+    if (previous && next.ts - previous.ts > GAP_S) {
+      stopReplay();
+      replayStoppedAtGap = true;
+      renderScene(currentSample());
+      return;
+    }
+    index++;
+    state.sampleId = next.id;
+    renderChart();
+  }, 900);
+}
+
 function timeWindow(rows, warnings) {
   const records = rows.length ? rows : warnings;
   if (!records.length) return null;
@@ -274,7 +385,7 @@ function timeWindow(rows, warnings) {
   return [start, end];
 }
 
-function plotSeries(layer, rows, field, name, x, y, selected, detached) {
+function plotSeries(layer, rows, field, name, x, y, selected, detached, activePointId) {
   let previous = null;
   const path = [];
   const points = [];
@@ -286,6 +397,7 @@ function plotSeries(layer, rows, field, name, x, y, selected, detached) {
     const px = x(r.ts), py = y(r[field]);
     const join = previous !== null && r.ts - previous.ts <= GAP_S;
     path.push((join ? "L" : "M") + px + " " + py);
+    if (r.id === activePointId) points.push(svg("circle", {cx: px, cy: py, r: 5.5, class: "point-live-ring"}));
     points.push(svg("circle", {cx: px, cy: py, r: r.id === selected?.id ? 3.6 : 2.2, class: "point-" + name}));
     // The retained selection can be separated from the newest window by discarded records.
     previous = r === detached ? null : r;
@@ -322,8 +434,12 @@ function makeChart(rows, alerts, selected) {
   }
   if (span) {
     if (validTimestamp(selected?.ts)) layer.append(svg("line", {class: "selector", x1: x(selected.ts), x2: x(selected.ts), y1: top - 4, y2: bottom}));
-    plotSeries(layer, timedRows, "device_score", "device", x, y, selected, detached);
-    plotSeries(layer, timedRows, "conf", "yolo", x, y, selected, detached);
+    const live = state.sampleId === null && !state.paused && state.health.status === true;
+    const now = Date.now() / 1000;
+    const latestDevice = live ? [...timedRows].reverse().find(r => finite(r.device_score) && Math.abs(now - r.ts) <= SAMPLE_STALE_S)?.id : null;
+    const latestYolo = live ? [...timedRows].reverse().find(r => finite(r.conf) && Math.abs(now - r.ts) <= SAMPLE_STALE_S)?.id : null;
+    plotSeries(layer, timedRows, "device_score", "device", x, y, selected, detached, latestDevice);
+    plotSeries(layer, timedRows, "conf", "yolo", x, y, selected, detached, latestYolo);
     for (const a of events) {
       const px = x(a.ts);
       const marker = svg("g", {"data-warning": a.id});
@@ -375,12 +491,16 @@ function renderChart() {
   $("prev").setAttribute("aria-disabled", String(index <= 0));
   $("next").setAttribute("aria-disabled", String(index < 0 || index >= rows.length - 1));
   $("latest").setAttribute("aria-pressed", String(state.sampleId === null));
+  $("replay").disabled = rows.length < 2;
   evidence(selected);
+  renderScene(selected);
   renderChartData();
+  syncLiveMarker();
 }
 
 function openViewer(url, caption) {
   if (!url) return;
+  stopReplay();
   const image = element("img");
   image.alt = caption;
   image.src = url;
@@ -508,24 +628,34 @@ function every(ms, name, operation) {
 }
 
 $("pause").addEventListener("click", () => {
+  stopReplay();
   state.paused = !state.paused;
   if (state.paused) pollGeneration++;
   $("pause").setAttribute("aria-pressed", String(state.paused));
   write($("pause"), state.paused ? "Resume" : "Pause");
   renderConnection();
 });
-$("prev").addEventListener("click", () => navigate(-1));
-$("next").addEventListener("click", () => navigate(1));
+$("prev").addEventListener("click", () => { stopReplay(); navigate(-1); });
+$("next").addEventListener("click", () => { stopReplay(); navigate(1); });
 $("latest").addEventListener("click", () => inspect(null));
+$("replay").addEventListener("click", replayCaptures);
+$("scene-angle").addEventListener("click", () => {
+  const button = $("scene-angle");
+  const turned = button.getAttribute("aria-pressed") !== "true";
+  button.setAttribute("aria-pressed", String(turned));
+  $("crossing-model").classList.toggle("is-turned", turned);
+  write(button, turned ? "Reset angle" : "Change angle");
+});
 $("plot").addEventListener("keydown", event => {
-  if (event.key === "ArrowLeft") navigate(-1);
-  else if (event.key === "ArrowRight") navigate(1);
-  else if (event.key === "Home" && chartView?.rows.length) inspect(chartView.rows[0].id);
-  else if (event.key === "End") inspect(null);
+  if (event.key === "ArrowLeft") { stopReplay(); navigate(-1); }
+  else if (event.key === "ArrowRight") { stopReplay(); navigate(1); }
+  else if (event.key === "Home" && chartView?.rows.length) { stopReplay(); inspect(chartView.rows[0].id); }
+  else if (event.key === "End") { stopReplay(); inspect(null); }
   else return;
   event.preventDefault();
 });
 $("chart").addEventListener("click", event => {
+  stopReplay();
   const marker = event.target.closest("[data-warning]");
   if (marker) {
     openWarning(chartView.events.find(a => String(a.id) === marker.dataset.warning));
@@ -542,11 +672,25 @@ $("thumb-open").addEventListener("click", () => {
   const r = currentSample();
   if (r) openViewer(r.thumb_url, "Selected sample · " + r.mac + " · " + stamp(r.ts));
 });
+$("scene-preview").addEventListener("click", () => {
+  const r = currentSample();
+  if (r?.thumb_url) openViewer(r.thumb_url, "Selected camera capture · " + r.mac + " · " + stamp(r.ts));
+});
 $("viewer").addEventListener("click", event => {
   if (event.target === $("viewer")) $("viewer").close();
 });
 $("chart-details").addEventListener("toggle", renderChartData);
 new ResizeObserver(renderChart).observe($("plot"));
+let plotInView = false;
+const plot = $("plot");
+function syncPlotMotion() {
+  plot.classList.toggle("motion-active", plotInView && !document.hidden);
+}
+document.addEventListener("visibilitychange", syncPlotMotion);
+new IntersectionObserver(([entry]) => {
+  plotInView = entry.isIntersecting;
+  syncPlotMotion();
+}, {threshold: .1}).observe(plot);
 function tick() { write($("now"), timeFormat.format(new Date())); }
 tick();
 setInterval(tick, 1000);

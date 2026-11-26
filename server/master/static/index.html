@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light">
   <title>Crossing Study · Pedestrian monitor</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -25,60 +25,81 @@
   <main class="wrap" id="overview">
     <div class="overview">
       <section class="instrument" aria-labelledby="title">
-        <div class="study">
-          <div class="study__title"><h1 id="title">Crossing<br>Study</h1></div>
-          <figure class="engraving">
-            <svg aria-hidden="true" viewBox="0 0 378 188" preserveAspectRatio="xMidYMid meet">
-              <defs>
-                <g id="body">
-                  <path d="m46 40 5-9-1-7q-5-4-4-12 1-9 10-11 11-2 15 6l1 8 4 6-4 2-1 6-5 2-4-1-1 8 4 8-4 18-6 15-1 10-23-4 3-13 3-19q1-8 9-12z"/>
-                  <path class="cut" d="m46 40 8 6 7-8m-21 32 5 7 11 2m-21 3 18 4m-4-70q6-7 15-5l6-1m-17 10q-2-6 1-6 3 0 3 4m6-4 4 1"/>
+        <header class="study-head">
+          <div><h1 id="title">Crossing Study</h1><p id="scene-camera">Select a camera to inspect its crossing</p></div>
+          <div class="scene-head-tools"><span class="illustration-note">Schematic view · not to scale</span><button id="scene-angle" class="button" type="button" aria-pressed="false">Change angle</button></div>
+        </header>
+        <div class="scene-layout">
+          <figure class="crossing-scene" aria-labelledby="scene-caption">
+            <div class="scene-canvas">
+              <svg id="crossing-model" viewBox="0 0 760 410" role="img" aria-labelledby="model-title model-desc">
+                <title id="model-title">Three-dimensional schematic crossing</title>
+                <desc id="model-desc">An elevated crossing model with a camera preview and a fixed schematic pedestrian that appears when the selected sample classifies a pedestrian.</desc>
+                <defs>
+                  <linearGradient id="road-top" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#354a62"/><stop offset="1" stop-color="#1d2b40"/></linearGradient>
+                  <linearGradient id="curb-top" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#ddd8ce"/><stop offset="1" stop-color="#aaa9a1"/></linearGradient>
+                  <linearGradient id="camera-cone" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c9c9e4" stop-opacity=".3"/><stop offset="1" stop-color="#c9c9e4" stop-opacity=".02"/></linearGradient>
+                  <filter id="scene-shadow" x="-.3" y="-.3" width="1.6" height="1.8"><feGaussianBlur stdDeviation="9"/></filter>
+                </defs>
+                <ellipse cx="390" cy="355" rx="320" ry="30" fill="#101b2b" opacity=".34" filter="url(#scene-shadow)"/>
+                <g class="model-object">
+                  <path class="walkway-side" d="m70 188 76-35 546 112-70 49z"/>
+                  <path class="walkway-top" d="m70 178 76-36 546 111-70 38z"/>
+                  <path class="road-side" d="m100 221 95-47 495 101-93 53z"/>
+                  <path class="road-top" d="m100 209 95-47 495 101-93 53z"/>
+                  <path class="curb-side" d="m100 209 95-47 495 101-93 53 0 13-497-101z"/>
+                  <path class="curb-rim" d="m100 209 95-47 495 101-93 53z"/>
+                  <path class="marking" d="m500 224-95 47-24-5 95-47z"/>
+                  <path class="marking" d="m540 232-95 47-24-5 95-47z"/>
+                  <path class="marking" d="m580 240-95 47-24-5 95-47z"/>
+                  <path class="marking" d="m620 248-95 47-24-5 95-47z"/>
+                  <path class="lane-line" d="m112 229 484 99"/>
+                  <path class="camera-frustum" d="m144 86 68 0 185 137-248-49z"/>
+                  <path class="frustum-edge" d="m144 86 253 137m-185-137-68 51"/>
+                  <g class="camera-unit" transform="translate(106 47)">
+                    <path d="m0 23 23-12 42 8-22 13z"/>
+                    <path d="m0 23 0 31 42 8V32z"/>
+                    <path d="m42 32 23-13v31L42 62z"/>
+                    <path class="lens" d="m59 25 10 2v13l-10 1z"/>
+                    <path class="mount" d="m19 59 9 2v39l-9-2zm-9 39 28 5-3 8-28-5z"/>
+                  </g>
+                  <g class="scene-person" id="scene-person" aria-hidden="true" transform="translate(370 165)">
+                    <ellipse cx="4" cy="54" rx="20" ry="6" fill="#101b2b" opacity=".35"/>
+                    <circle cx="4" cy="5" r="8"/>
+                    <path d="M-7 16q11-9 22 0l5 22-9 5-1 22h-8l-3-19-5 18h-8l5-29-4-10z"/>
+                    <path class="person-limb" d="m-1 60-8 18 1 10m13-10 10 16m-24-34-12 16-10 8m28-23 12 13 12 4"/>
+                  </g>
                 </g>
-                <g id="stride">
-                  <path d="m37 80 17 3-11 24-12 15-22 28-1 4-7-1 1-5 6-8 15-28z"/>
-                  <path d="m42 82 18 1 5 20 9 15 14 26 7 3 4 4-5 2-15-2-1-6-15-17-12-15-9-17z"/>
-                  <path class="cut" d="m15 134 7 4m54-1 6-3m-29-44 5 15 12 17m-32-26-11 22"/>
-                  <use href="#body"/><path d="m54 42q6-2 7 4l3 16 13 10 7 1 3 5-4 1-8-3-17-8-8-19q-1-4 4-7z"/>
-                  <path class="cut" d="m53 49 4 12m17 10-2 4"/>
-                </g>
-                <g id="passing">
-                  <path d="m43 81 15 2-5 26-8 14-1 24 3 3 7 1 2 3H36l-2-5 1-30z"/>
-                  <path d="m37 80 15 5 8 17 13 13-1 6-22 11-9 8-5-2 3-9 9-4 12-10-17-12-9-12z"/>
-                  <path class="cut" d="m36 143 8 1m9-20 3 6m-8-40 5 12 12 10"/>
-                  <use href="#body"/><path d="m49 43q4-5 9-1 3 2 1 7l-6 16 5 15 4 4-1 5-5-1-4-7-8-15z"/>
-                </g>
-                <g id="reach">
-                  <path d="m44 81 14 2 8 24-3 13-19 24-1 6-8 1-2-3 3-8 15-27-10-19z"/>
-                  <path d="m37 81 15 4-3 25-3 16 10 20 6 3 4 3-3 2-15-2-2-5-14-25 1-8z"/>
-                  <path class="cut" d="m43 138 8-2m-8-31-4 15 3 6"/>
-                  <use href="#body"/><path d="m50 43q4-5 8-2 4 4 0 9l-12 13-14 9-7 6-5-2 3-6 9-4 10-10z"/>
-                </g>
-              </defs>
-              <g class="ground-marks">
-                <path d="M11 153h358M11 158h351M35 178h302"/>
-                <path d="m28 158-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20zm43 0-27 20h19l27-20z"/>
-              </g>
-              <g class="poses" transform="translate(4 0)">
-                <use class="pose p1" href="#stride" transform="translate(0 2) scale(.98)"/>
-                <use class="pose p2" href="#passing" transform="translate(41 -1)"/>
-                <use class="pose p3" href="#reach" transform="translate(79 0)"/>
-                <use class="pose p4" href="#stride" transform="translate(115 1) scale(.99)"/>
-                <use class="pose p5" href="#passing" transform="translate(157 -1)"/>
-                <use class="pose p6" href="#reach" transform="translate(193 0)"/>
-                <use class="pose final" href="#stride" transform="translate(239 -2) scale(1.01)"/>
-              </g>
-            </svg>
-            <figcaption><span></span>Gait study illustration</figcaption>
+                <g class="model-labels" aria-hidden="true"><text x="89" y="356">CAMERA</text><text x="497" y="361">CROSSING</text></g>
+              </svg>
+              <span class="scene-presence" id="scene-presence" data-kind="unknown">Awaiting capture</span>
+            </div>
+            <figcaption id="scene-caption">The figure marks classification only. Its position is schematic, not tracked.</figcaption>
           </figure>
+          <section class="scene-readout" aria-label="Selected capture and measurements">
+            <div class="scene-result" id="scene-result" data-kind="unknown" role="status" aria-live="polite"><span class="scene-result__dot" aria-hidden="true"></span><strong id="scene-class">Awaiting capture</strong><time id="scene-time">No sample selected</time></div>
+            <button class="scene-preview" id="scene-preview" type="button" aria-label="Enlarge selected camera capture" disabled>
+              <span id="scene-image-empty">Camera image appears here with a capture</span><span class="preview-expand" aria-hidden="true">↗</span>
+            </button>
+            <div class="scene-measures">
+              <div class="confidence-measure"><div class="measure-head"><span>Device</span><strong id="scene-device">—</strong></div><div class="measure-track" role="meter" aria-label="Device confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="scene-device-fill"></i></div></div>
+              <div class="confidence-measure yolo"><div class="measure-head"><span>YOLO</span><strong id="scene-yolo">—</strong></div><div class="measure-track" role="meter" aria-label="YOLO confidence" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="scene-yolo-fill"></i></div></div>
+            </div>
+            <div class="dwell-readout">
+              <div class="measure-head"><span>Reported dwell</span><strong id="dwell-value">—</strong></div>
+              <span id="dwell-camera" class="dwell-camera">No focused camera</span>
+              <div class="dwell-track" role="meter" aria-label="Reported dwell relative to configured limit" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i id="dwell-fill"></i><b id="dwell-limit-mark"></b></div>
+              <div class="dwell-foot"><span id="dwell-limit">Limit —</span><span id="dwell-time">No capture</span></div>
+            </div>
+            <div class="replay-controls" aria-label="Capture replay controls">
+              <button id="prev" class="button step" aria-label="Previous capture" type="button" aria-disabled="true">←</button>
+              <button id="replay" class="button replay" type="button" aria-pressed="false">Replay captures</button>
+              <button id="next" class="button step" aria-label="Next capture" type="button" aria-disabled="true">→</button>
+              <button id="latest" class="button latest" type="button" aria-pressed="true">Latest</button>
+            </div>
+          </section>
         </div>
-        <div class="dwell">
-          <div><h2>Reported dwell</h2><p id="dwell-camera">No focused camera</p></div>
-          <div class="dwell__scale">
-            <div class="dwell__readings"><strong id="dwell-value">—</strong><span id="dwell-limit">Limit —</span></div>
-            <div class="ruler" aria-hidden="true"><i id="dwell-fill"></i></div>
-            <p id="dwell-time">No capture</p>
-          </div>
-        </div>
+        <p class="scene-footnote">Measurements and image follow the selected sample. Captures are not interpolated.</p>
       </section>
       <aside class="summary" aria-label="Fleet overview">
         <section class="fleet"><div class="summary-heading"><svg aria-hidden="true" viewBox="0 0 20 20"><rect x="2" y="3" width="10" height="7" rx="1"/><path d="m12 5 5-2v7l-5-2M5 13v3h9"/></svg><span class="diamond" aria-hidden="true"></span><h2>Fleet status</h2></div><p class="readout" id="fleet-title">Connecting</p><p class="summary-detail" id="fleet-detail">Waiting for device status.</p></section>
@@ -95,7 +116,7 @@
         </div>
         <p class="visually-hidden" id="chart-instructions">Use the left and right arrow keys to select a sample. Press End to follow the latest sample. Chart readings are also available in the data table.</p>
         <p class="visually-hidden" id="selection-announcement" role="status"></p>
-        <div class="chart-toolbar"><span class="scope" id="sample-position">No samples</span><div class="chart-buttons"><button id="prev" class="button step" aria-label="Previous sample" type="button" aria-disabled="true">←</button><button id="next" class="button step" aria-label="Next sample" type="button" aria-disabled="true">→</button><button id="latest" class="button latest" type="button" aria-pressed="true">Latest</button></div></div>
+        <div class="chart-toolbar"><span class="scope" id="sample-position">No samples</span><span class="scope">Select a point or use the replay controls above</span></div>
         <section class="sample" aria-labelledby="sample-h">
           <div class="sample-image"><button id="thumb-open" type="button" aria-label="Enlarge selected capture" hidden><span aria-hidden="true">↗</span></button><span id="thumb-missing">No capture</span></div>
           <div class="sample__details"><h3 id="sample-h">Selected sample</h3><p id="sample-time">No sample selected</p><dl class="values"><div><dt>Device score</dt><dd id="sample-device">—</dd></div><div><dt>YOLO score</dt><dd id="sample-yolo">—</dd></div><div><dt>Reported dwell</dt><dd id="sample-dwell">—</dd></div><div><dt>Classification</dt><dd id="sample-class">—</dd></div></dl></div>

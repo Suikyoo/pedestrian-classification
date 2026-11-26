@@ -29,15 +29,17 @@ spacing:
 
 # Crossing Study
 
-## Gait illustration and reported dwell
+## Crossing model and capture replay
 
-Seven overlapping walking poses share a ground line on an ink-blue plate. The early poses are fine silver-lilac outlines and the final figure has a pale fill. Diagonal crossing marks beneath the feet echo the three stripes in the navigation mark. The inline SVG stays still and carries the visible caption “Gait study illustration.”
+The hero leads with an axonometric street section: raised concrete, dark asphalt, enamel crossing bars, a camera body, and its explicitly schematic view cone. A compact control changes the viewing angle. A fixed pedestrian silhouette appears only when the selected record's `positive` value is true; it disappears on a clear record. The caption states that its position is not tracked. The model is not a live feed or a calibrated camera view.
 
-A separate ruler below the illustration compares the focused camera’s latest reported dwell with its configured limit. Both values are labeled in seconds. The capture timestamp accompanies the reading and identifies older observations. Zero appears as `0 s` and missing values appear as a dash.
+The adjacent camera plane shows the selected record's actual thumbnail. Previous, Replay captures, Next, and Latest all operate on the same record used by the confidence chart and detail view. Replay advances between stored captures, does not interpolate between them, and stops at a gap longer than ten seconds. Camera changes, manual sample selection, pausing, and returning to Latest stop replay. Historical readings are labeled with their capture time.
+
+Device and YOLO confidence are shown as separately labeled percentage bars with the same 0–100 scale. Reported dwell has a distinct ruler in seconds and a mark at the configured limit. These readings follow the selected sample, while the limit follows its camera. Zero displays as `0 s`; unavailable values display as a dash.
 
 ## Confidence timeline
 
-The camera roster selects the source for the ruler and timeline. Horizontal distance on the plot represents elapsed capture time. The vertical axis spans confidence from 0 to 1.
+The camera roster selects the source for the crossing scene, readings, and timeline. Horizontal distance on the plot represents elapsed capture time. The vertical axis spans confidence from 0 to 1.
 
 | Record | Encoding |
 | --- | --- |
@@ -47,6 +49,8 @@ The camera roster selects the source for the ruler and timeline. Horizontal dist
 | Recorded warning | Coral outlined diamond above the score traces, aligned to the warning’s own timestamp |
 
 Each trace breaks at missing values and sampling gaps longer than ten seconds. Dots keep isolated readings visible. Selecting a sample reveals its capture time, thumbnail when available, both detector scores, reported dwell and recorded classification. Historical selection stays on the same sample as new records arrive. **Latest** resumes following captures.
+
+When **Latest** is following a fresh, connected stream, a soft violet ring expands from the newest available point on each trace. It stops when the user pauses, inspects history, the capture goes stale, the plot leaves view or the browser tab is hidden. Reduced-motion mode keeps a still ring as the live-state cue. Capture replay uses short transitions for sample changes; reduced-motion mode removes those transitions.
 
 ## Fleet and warning records
 
@@ -58,7 +62,7 @@ The archive lists warnings newest first, with recorded time, camera ID, reported
 
 White panels sit on a warm paper ground with thin gray rules. Self-hosted Barlow Condensed Bold sets the study title, section headings and large status readings. Self-hosted Inter carries labels and instructions. A local monospace face distinguishes measurements, timestamps and identifiers. Violet identifies the selected camera and the YOLO trace. The legend also distinguishes both traces by line style.
 
-On wide screens the study and timeline share the wider left column, with the fleet summary and camera roster on the right. The warning archive spans both columns. At 760px and below, these sections stack, and the two fleet readings sit side by side. At phone widths the navigation wraps, sample readings form two columns and data tables scroll horizontally.
+On wide screens the crossing model and timeline share the wider left column, with the fleet summary and camera roster on the right. Inside the hero, the scene and camera readout sit side by side; on phones, the scene comes first and its measurements, preview, and replay controls stack below. The warning archive spans both columns. At 760px and below, the main sections stack, and the two fleet readings sit side by side. At phone widths the navigation wraps, sample readings form two columns and data tables scroll horizontally.
 
 ## Components
 
@@ -78,6 +82,8 @@ Native controls pair persistent labels with monospace values and range hints. Ed
 
 ## Keyboard and motion
 
-Both pages include a skip link and a visible, three-pixel focus outline. The focused plot supports Left and Right to step through samples, Home for the earliest sample and End to resume following. Previous and Next buttons step one sample at a time. The expandable chart data table gives timestamps, both confidence readings and record labels in text. Snapshot dialogs have a caption and support the Close button and Escape.
+Both pages include a skip link and a visible, three-pixel focus outline. The focused plot supports Left and Right to step through samples, Home for the earliest sample and End to resume following. Previous and Next buttons step one sample at a time; Replay advances through captures and stops at long gaps. The expandable chart data table gives timestamps, both confidence readings and record labels in text. Snapshot dialogs have a caption and support the Close button and Escape.
 
-Live regions announce connection status, keyboard or pointer sample selection, and admin feedback. Pausing polling allows a fixed view. The illustration stays static, and the shared reduced-motion rule disables animation, transitions and smooth scrolling.
+Live regions announce connection status, selected classifications and admin feedback. Pausing polling allows a fixed view. The crossing model changes only with the selected capture; it does not simulate a path. Reduced-motion mode removes replay transitions, angle transitions, live chart animation, and smooth scrolling.
+
+The browser-tab icon is a compact line-art pedestrian crossing on the same deep blue plate as the 3D scene.
